@@ -30,7 +30,7 @@ typ :: F X -> F X
 typ = id
 
 spec :: Spec
-spec = modifyMaxSize (`div` 3) $ do
+spec = modifyMaxSize id $ do
   describe "fromList" $ do
     prop "is the opposite of toList" $ do
       \x -> (fromList . toList) x `shouldBe` typ x
@@ -81,7 +81,7 @@ spec = modifyMaxSize (`div` 3) $ do
          in (return a >>= k) `shouldBe` k a
     prop "right identity" $ do
       \m -> (m >>= return) `shouldBe` typ m
-    modifyMaxSize (`div` 8) $ do
+    modifyMaxSize (`div` 20) $ do
       prop "associativity" $ do
         \k' h' m ->
           let k = applyFun k' :: X -> F X
