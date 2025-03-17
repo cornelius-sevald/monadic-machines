@@ -1,6 +1,7 @@
 module Main (main) where
 
 import qualified Automata.DFASpec
+import qualified Automata.NFASpec
 import qualified Data.ListListSpec
 import qualified Data.PropositionSpec
 import Test.Hspec
@@ -16,3 +17,4 @@ spec = do
     describe "Proposition" Data.PropositionSpec.spec
   describe "Automata" $ do
     describe "DFA" Automata.DFASpec.spec
+    describe "NFA" Automata.NFASpec.spec

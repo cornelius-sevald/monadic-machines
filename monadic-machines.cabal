@@ -126,6 +126,7 @@ test-suite monadic-machines-test
         Data.ListListSpec
         Data.PropositionSpec
         Automata.DFASpec
+        Automata.NFASpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
