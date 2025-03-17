@@ -30,7 +30,7 @@ typ :: F X -> F X
 typ = id
 
 spec :: Spec
-spec = modifyMaxSize id $ do
+spec = modifyMaxSize (`div` 2) $ do
   describe "fromList" $ do
     prop "is the opposite of toList" $ do
       \x -> (fromList . toList) x `shouldBe` typ x

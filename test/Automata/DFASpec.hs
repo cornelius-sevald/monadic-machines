@@ -1,11 +1,9 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -Wno-type-defaults #-}
 
 module Automata.DFASpec where
 
-import Automata.DFA
 import Automata.Class
+import Automata.DFA
 import Data.Alphabet
 import qualified Data.Set as Set
 import Test.Hspec
