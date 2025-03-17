@@ -8,6 +8,7 @@ module Automata.NFA (NFA (..), closureE, step, fromDFA, toDFA) where
 import qualified Automata.Class
 import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
+import Data.Foldable (foldl')
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
@@ -55,22 +56,33 @@ instance
     where
       trans' = function (trans nfa)
 
+-- | The ε-closure of the NFA in state @q@.
+closureE :: (Ord s) => NFA a s -> s -> Set s
+closureE nfa q = go $ Set.singleton q
+  where
+    stepE r = trans nfa (r, Nothing)
+    go qs =
+      let rs = Set.fromList (concatMap stepE qs)
+       in if rs `Set.isSubsetOf` qs
+            then qs
+            else go (qs <> rs)
+
 -- | Step the NFA in state @q@ with input symbol @x@.
 step :: (Ord s) => NFA a s -> s -> a -> [s]
 step nfa q x =
-  case stepE nfa q of
-    [] -> step1 q
-    (r : rs) -> step1 q ++ step1 r ++ stepMany rs
+  let rs = closureE nfa q
+   in concatMap step1 rs
   where
     step1 r = trans nfa (r, Just x)
-    stepMany = concatMap (flip (step nfa) x)
 
--- | Does the NFA @m@ accept the input string @xs@?
+-- | Does the NFA accept the input string @xs@?
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
-accepts m xs = any (`Set.member` final m) r_n
+accepts nfa xs = any (`Set.member` final nfa) r_n
   where
-    r_0 = start m
-    r_n = foldM (step m) r_0 xs
+    r_0 = closureE nfa $ start nfa
+    r_n = foldl' f r_0 xs
+    f qs x = Set.unions $ Set.map (step' x) qs
+    step' x q = Set.fromList $ step nfa q x
 
 -- | Convert a DFA to an equivalent NFA.
 fromDFA :: DFA a s -> NFA a s
@@ -84,12 +96,12 @@ fromDFA dfa =
     delta (_, Nothing) = []
     delta (q, Just x) = [DFA.trans dfa (q, x)]
 
--- | [WIP] Convert a NFA to an equivalent DFA.
--- TODO: Also handle epsilon transitions.
+-- | Convert a NFA to an equivalent DFA.
+-- TODO: Test that this works.
 toDFA :: (Ord s, Finite s) => NFA a s -> DFA a (Set s)
 toDFA nfa =
   DFA.DFA
-    { DFA.start = Set.singleton $ start nfa,
+    { DFA.start = closureE nfa (start nfa),
       DFA.final = fs,
       DFA.trans = delta
     }
@@ -97,7 +109,7 @@ toDFA nfa =
     qs = Set.powerSet $ Set.fromList universeF
     fs = Set.filter (any (`Set.member` final nfa)) qs
     delta (rs, x) =
-      let d r = Set.fromList $ trans nfa (r, Just x)
+      let d r = Set.fromList $ step nfa r x
        in Set.unions $ Set.map d rs
 
 instance (Ord s) => Automata.Class.Acceptor NFA a s where
