@@ -1,16 +1,18 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Non-deterministic finite automata
-module Automata.NFA where
+module Automata.NFA (NFA (..), closureE, step, fromDFA, toDFA) where
 
 import qualified Automata.Class
 import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
-import Control.Monad (foldM)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
+import GHC.Generics (Generic)
+import Test.QuickCheck (Arbitrary (..), CoArbitrary, Function (function), applyFun, genericShrink)
 
 -- | A non-deterministic finite automaton is a 5-tuple
 --  ($Q, \Sigma, \delta, q_0, F$), where
@@ -23,20 +25,35 @@ import Data.Universe.Class (Finite (universeF))
 --
 -- The states and alphabet is implicitly given by the type.
 data NFA a s = NFA
-  { -- | The transition function $\delta$.
-    trans :: (s, Maybe a) -> [s],
-    -- | The start state $q_0$.
+  { -- | The start state $q_0$.
     start :: s,
     -- | The set of final states $F$.
-    final :: Set s
+    final :: Set s,
+    -- | The transition function $\delta$.
+    trans :: (s, Maybe a) -> [s]
   }
+  deriving (Generic)
 
--- | Step the NFA in state @q@ with no input symbols.
-stepE :: (Ord s) => NFA a s -> s -> [s]
-stepE nfa q = step1 ++ stepMany
+instance
+  ( Show a,
+    Show s,
+    Function a,
+    Function s
+  ) =>
+  Show (NFA a s)
   where
-    step1 = trans nfa (q, Nothing)
-    stepMany = concatMap (stepE nfa) (trans nfa (q, Nothing))
+  show nfa =
+    "NFA { start = "
+      ++ show (start nfa)
+      ++ ", "
+      ++ "final = "
+      ++ show (final nfa)
+      ++ ", "
+      ++ "trans = "
+      ++ show trans'
+      ++ " }"
+    where
+      trans' = function (trans nfa)
 
 -- | Step the NFA in state @q@ with input symbol @x@.
 step :: (Ord s) => NFA a s -> s -> a -> [s]
@@ -85,3 +102,11 @@ toDFA nfa =
 
 instance (Ord s) => Automata.Class.Acceptor NFA a s where
   accepts = accepts
+
+instance (Ord s, Function a, Function s, Arbitrary s, CoArbitrary s, CoArbitrary a) => Arbitrary (NFA a s) where
+  arbitrary = do
+    start' <- arbitrary
+    final' <- Set.fromList <$> arbitrary
+    trans' <- applyFun <$> arbitrary
+    pure $ NFA {start = start', final = final', trans = trans'}
+  shrink = genericShrink
