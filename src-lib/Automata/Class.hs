@@ -1,10 +1,11 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Automata.FiniteAutomaton where
+module Automata.Class where
 
 import Control.Monad (replicateM)
 import Data.Universe.Class
 
+-- | Typeclass for automata that act as acceptors of (finite) words.
 class Acceptor m a s where
   accepts :: m a s -> [a] -> Bool
 

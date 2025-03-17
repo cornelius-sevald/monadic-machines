@@ -5,7 +5,7 @@
 module Automata.DFASpec where
 
 import Automata.DFA
-import Automata.FiniteAutomaton
+import Automata.Class
 import Data.Alphabet
 import qualified Data.Set as Set
 import Test.Hspec

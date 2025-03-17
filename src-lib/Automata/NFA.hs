@@ -4,9 +4,9 @@
 -- | Non-deterministic finite automata
 module Automata.NFA where
 
+import qualified Automata.Class
 import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
-import qualified Automata.FiniteAutomaton as FA
 import Control.Monad (foldM)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -83,5 +83,5 @@ toDFA nfa =
       let d r = Set.fromList $ trans nfa (r, Just x)
        in Set.unions $ Set.map d rs
 
-instance (Ord s) => FA.Acceptor NFA a s where
+instance (Ord s) => Automata.Class.Acceptor NFA a s where
   accepts = accepts
