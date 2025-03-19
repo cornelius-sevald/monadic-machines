@@ -123,6 +123,7 @@ test-suite monadic-machines-test
 
     -- Modules included in this executable, other than Main.
     other-modules:
+        Test.Util
         Data.ListListSpec
         Data.PropositionSpec
         Automata.DFASpec

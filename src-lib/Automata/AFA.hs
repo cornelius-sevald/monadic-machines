@@ -11,7 +11,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
 import GHC.Generics (Generic)
-import Test.QuickCheck (Arbitrary (..), CoArbitrary, Function, applyFun, genericShrink)
 
 -- | An alternating finite automaton is a 5-tuple
 --  ($Q, \Sigma, \delta, q_0, F$), where
@@ -52,10 +51,8 @@ accepts m xs = stepH m (start m) xs (final m)
 instance (Ord s, Finite s) => Automata.Class.Acceptor AFA a s where
   accepts = accepts
 
-instance (Ord s, Function a, Function s, Arbitrary s, CoArbitrary s, CoArbitrary a) => Arbitrary (AFA a s) where
-  arbitrary = do
-    start' <- arbitrary
-    final' <- Set.fromList <$> arbitrary
-    trans' <- applyFun <$> arbitrary
-    pure $ AFA {start = start', final = final', trans = trans'}
-  shrink = genericShrink
+{- Bibliography
+ - ~~~~~~~~~~~~
+ - [1]: Chandra, Ashok K.; Kozen, Dexter C.; Stockmeyer, Larry J. (1981). "Alternation"
+ - [2]: Fellah, Abdelaziz, Helmut Jürgensen, and Sheng Yu. "Constructions for alternating finite automata." International journal of computer mathematics 35.1-4 (1990): 117-132.
+-}

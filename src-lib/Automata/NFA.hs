@@ -13,7 +13,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
 import GHC.Generics (Generic)
-import Test.QuickCheck (Arbitrary (..), CoArbitrary, Function (function), applyFun, genericShrink)
 
 -- | A non-deterministic finite automaton is a 5-tuple
 --  ($Q, \Sigma, \delta, q_0, F$), where
@@ -35,27 +34,6 @@ data NFA a s = NFA
   }
   deriving (Generic)
 
-instance
-  ( Show a,
-    Show s,
-    Function a,
-    Function s
-  ) =>
-  Show (NFA a s)
-  where
-  show nfa =
-    "NFA { start = "
-      ++ show (start nfa)
-      ++ ", "
-      ++ "final = "
-      ++ show (final nfa)
-      ++ ", "
-      ++ "trans = "
-      ++ show trans'
-      ++ " }"
-    where
-      trans' = function (trans nfa)
-
 -- | The ε-closure of the NFA in state @q@.
 closureE :: (Ord s) => NFA a s -> s -> Set s
 closureE nfa q = go $ Set.singleton q
@@ -76,6 +54,7 @@ step nfa q x =
     step1 r = trans nfa (r, Just x)
 
 -- | Does the NFA accept the input string @xs@?
+-- TODO: Test that this works.
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
 accepts nfa xs = any (`Set.member` final nfa) r_n
   where
@@ -114,11 +93,3 @@ toDFA nfa =
 
 instance (Ord s) => Automata.Class.Acceptor NFA a s where
   accepts = accepts
-
-instance (Ord s, Function a, Function s, Arbitrary s, CoArbitrary s, CoArbitrary a) => Arbitrary (NFA a s) where
-  arbitrary = do
-    start' <- arbitrary
-    final' <- Set.fromList <$> arbitrary
-    trans' <- applyFun <$> arbitrary
-    pure $ NFA {start = start', final = final', trans = trans'}
-  shrink = genericShrink

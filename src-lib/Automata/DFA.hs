@@ -9,7 +9,6 @@ import qualified Automata.Class
 import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.Generics
-import Test.QuickCheck (Arbitrary (..), CoArbitrary, Function (function), applyFun, genericShrink)
 
 -- | A deterministic finite automaton is a 5-tuple
 --  ($Q, \Sigma, \delta, q_0, F$), where
@@ -31,27 +30,6 @@ data DFA a s = DFA
   }
   deriving (Generic)
 
-instance
-  ( Show a,
-    Show s,
-    Function a,
-    Function s
-  ) =>
-  Show (DFA a s)
-  where
-  show dfa =
-    "DFA { start = "
-      ++ show (start dfa)
-      ++ ", "
-      ++ "final = "
-      ++ show (final dfa)
-      ++ ", "
-      ++ "trans = "
-      ++ show trans'
-      ++ " }"
-    where
-      trans' = function (trans dfa)
-
 -- | Step the DFA in state @q@ with input symbol @x@.
 step :: DFA a s -> s -> a -> s
 step dfa q x = trans dfa (q, x)
@@ -65,11 +43,3 @@ accepts m xs = r_n `Set.member` final m
 
 instance (Ord s) => Automata.Class.Acceptor DFA a s where
   accepts = accepts
-
-instance (Ord s, Function a, Function s, Arbitrary s, CoArbitrary s, CoArbitrary a) => Arbitrary (DFA a s) where
-  arbitrary = do
-    start' <- arbitrary
-    final' <- Set.fromList <$> arbitrary
-    trans' <- applyFun <$> arbitrary
-    pure $ DFA {start = start', final = final', trans = trans'}
-  shrink = genericShrink

@@ -8,6 +8,7 @@ import Data.Alphabet
 import Data.NAry (NAry)
 import Test.Hspec
 import Test.Hspec.QuickCheck
+import Test.Util
 
 -- | The number of states of the NFAs we test.
 type N = 8
@@ -22,15 +23,13 @@ spec :: Spec
 spec = do
   describe "toNFA" $ do
     prop "recognizes the same language" $ do
-      \nfa w ->
-        let dfa = toDFA (typNFA nfa)
+      \nfa' w ->
+        let nfa = mkNFA nfa' :: NFA A S
+            dfa = toDFA nfa
          in accepts nfa w `shouldBe` accepts dfa w
   describe "fromDFA" $ do
     prop "recognizes the same language" $ do
-      \dfa w ->
-        let nfa = typNFA (fromDFA dfa)
+      \dfa' w ->
+        let dfa = mkDFA dfa'
+            nfa = fromDFA dfa :: NFA A S
          in accepts nfa w `shouldBe` accepts dfa w
-
--- | Like `id` but forces the desired type of the NFA.
-typNFA :: NFA A S -> NFA A S
-typNFA = id
