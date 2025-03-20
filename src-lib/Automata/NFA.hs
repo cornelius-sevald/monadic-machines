@@ -46,10 +46,10 @@ closureE nfa q = go $ Set.singleton q
             else go (qs <> rs)
 
 -- | Step the NFA in state @q@ with input symbol @x@.
-step :: (Ord s) => NFA a s -> s -> a -> [s]
+step :: (Ord s) => NFA a s -> s -> a -> Set s
 step nfa q x =
   let rs = closureE nfa q
-   in concatMap step1 rs
+   in Set.fromList $ concatMap step1 rs
   where
     step1 r = trans nfa (r, Just x)
 
@@ -59,9 +59,10 @@ accepts :: (Ord s) => NFA a s -> [a] -> Bool
 accepts nfa xs = any (`Set.member` final nfa) r_n
   where
     r_0 = closureE nfa $ start nfa
-    r_n = foldl' f r_0 xs
+    r_n' = foldl' f r_0 xs
+    r_n = Set.unions $ Set.map (closureE nfa) r_n'
     f qs x = Set.unions $ Set.map (step' x) qs
-    step' x q = Set.fromList $ step nfa q x
+    step' x q = step nfa q x
 
 -- | Convert a DFA to an equivalent NFA.
 fromDFA :: DFA a s -> NFA a s
@@ -86,10 +87,13 @@ toDFA nfa =
     }
   where
     qs = Set.powerSet $ Set.fromList universeF
-    fs = Set.filter (any (`Set.member` final nfa)) qs
+    fs = Set.filter (any (`Set.member` prefinal)) qs
     delta (rs, x) =
-      let d r = Set.fromList $ step nfa r x
+      let d r = step nfa r x
        in Set.unions $ Set.map d rs
+    -- All states that can reach a final state with no input.
+    prefinal = Set.fromList [q | q <- universeF, intersects (closureE nfa q) (final nfa)]
+    intersects r u = not $ Set.null $ Set.intersection r u
 
 instance (Ord s) => Automata.Class.Acceptor NFA a s where
   accepts = accepts

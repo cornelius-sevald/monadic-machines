@@ -21,12 +21,12 @@ type A = ABC
 
 spec :: Spec
 spec = do
-  describe "toNFA" $ do
+  describe "toDFA" $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa' :: NFA A S
             dfa = toDFA nfa
-         in accepts nfa w `shouldBe` accepts dfa w
+         in accepts dfa w `shouldBe` accepts nfa w
   describe "fromDFA" $ do
     prop "recognizes the same language" $ do
       \dfa' w ->
