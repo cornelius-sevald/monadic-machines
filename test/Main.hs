@@ -1,5 +1,6 @@
 module Main (main) where
 
+import qualified Automata.AFASpec
 import qualified Automata.DFASpec
 import qualified Automata.NFASpec
 import qualified Data.ListListSpec
@@ -18,3 +19,4 @@ spec = do
   describe "Automata" $ do
     describe "DFA" Automata.DFASpec.spec
     describe "NFA" Automata.NFASpec.spec
+    describe "AFA" Automata.AFASpec.spec
