@@ -85,13 +85,10 @@ fromNFA :: (Ord s, Finite s) => NFA a s -> AFA a s
 fromNFA nfa = AFA {start = _start, final = _final, trans = _trans}
   where
     _start = NFA.start nfa
-    _final = prefinal
+    _final = NFA.prefinal nfa
     _trans q (a, u) =
       let r = NFA.step nfa q a
-       in intersects r u
-    -- All states that can reach the final state with no input.
-    prefinal = Set.fromList [q | q <- universeF, intersects (NFA.closureE nfa q) (NFA.final nfa)]
-    intersects r u = not $ Set.null $ Set.intersection r u
+       in not $ Set.null $ Set.intersection r u
 
 -- | To convert a DFA to an AFA,
 -- we let the transition function $g$ of the AFA for state $q$ and input symbol $x$
