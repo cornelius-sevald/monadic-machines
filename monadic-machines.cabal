@@ -68,6 +68,10 @@ library
         Automata.NFA
         Automata.AFA
         Automata.Monadic
+        Automata.Monadic.Identity
+        Automata.Monadic.List
+        Automata.Monadic.ListList
+        Automata.Monadic.Proposition
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -128,6 +132,10 @@ test-suite monadic-machines-test
         Automata.DFASpec
         Automata.NFASpec
         Automata.AFASpec
+        Automata.Monadic.IdentitySpec
+        Automata.Monadic.ListSpec
+        Automata.Monadic.ListListSpec
+        Automata.Monadic.PropositionSpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
