@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.ListList (ListList (..), toList, fromList, asCNF) where
+module Data.ListList (ListList (..), toList, fromList, toSet, fromSet, asCNF) where
 
 import Control.Applicative
 import Data.Function (on)
@@ -27,22 +27,25 @@ toList (ListList xss) = xss
 fromList :: [[a]] -> ListList a
 fromList = ListList
 
+toSet :: (Ord a) => ListList a -> Set (Set a)
+toSet (ListList xss) = Set.fromList $ Set.fromList <$> xss
+
+fromSet :: (Ord a) => Set (Set a) -> ListList a
+fromSet = ListList . fmap Set.toList . Set.toList
+
 -- | Evaluate the list-of-lists as a CNF formula.
 asCNF :: (a -> Bool) -> ListList a -> Bool
 asCNF f xss =
   let yss = getListList $ f <$> xss
    in all or yss
 
-toSetSet :: (Ord a) => ListList a -> Set (Set a)
-toSetSet (ListList xss) = Set.fromList $ Set.fromList <$> xss
-
 -- | For our purposes we treat both levels of lists as sets,
 -- and so we convert each list-of-lists to a set-of-sets before comparing.
 instance (Ord a) => Eq (ListList a) where
-  (==) = (==) `on` toSetSet
+  (==) = (==) `on` toSet
 
 instance (Ord a) => Ord (ListList a) where
-  compare = compare `on` toSetSet
+  compare = compare `on` toSet
 
 instance Semigroup (ListList a) where
   ListList xss <> ListList yss = ListList (xss <> yss)
