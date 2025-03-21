@@ -6,6 +6,7 @@
 -- TODO: Add functions for converting to- and from NFAs (and maybe also DFAs).
 module Automata.AFA
   ( AFA (..),
+    accepts,
     _H,
     _G,
     stepG,
@@ -15,7 +16,6 @@ module Automata.AFA
   )
 where
 
-import qualified Automata.Class
 import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
 import Automata.NFA (NFA)
@@ -141,9 +141,6 @@ toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
 -- TODO: Test that this works
 -- toDFA :: (Ord s, Finite s) => AFA a s -> DFA a (Set (Set s))
 -- toDFA = NFA.toDFA . toNFA
-
-instance (Ord s, Finite s) => Automata.Class.Acceptor AFA a s where
-  accepts = accepts
 
 {- Bibliography
  - ~~~~~~~~~~~~

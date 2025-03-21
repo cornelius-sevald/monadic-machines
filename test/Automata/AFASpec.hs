@@ -2,8 +2,10 @@
 
 module Automata.AFASpec where
 
-import Automata.AFA
-import Automata.Class
+import Automata.AFA (AFA)
+import qualified Automata.AFA as AFA
+import qualified Automata.DFA as DFA
+import qualified Automata.NFA as NFA
 import Data.Alphabet
 import Data.NAry (NAry)
 import Test.Hspec
@@ -21,22 +23,22 @@ type A = ABC
 
 spec :: Spec
 spec = do
-  -- \| NOTE: Currently fails, need to fix implementation
+  --  NOTE: Currently fails, need to fix implementation
   describe "toNFA" $ do
     prop "recognizes the same language" $ do
       \afa' w ->
         let afa = mkAFA afa' :: AFA A S
-            nfa = toNFA afa
-         in accepts nfa w `shouldBe` accepts afa w
+            nfa = AFA.toNFA afa
+         in NFA.accepts nfa w `shouldBe` AFA.accepts afa w
   describe "fromDFA" $ modifyMaxSize (`div` 8) $ do
     prop "recognizes the same language" $ do
       \dfa' w ->
         let dfa = mkDFA dfa'
-            afa = fromDFA dfa :: AFA A S
-         in accepts afa w `shouldBe` accepts dfa w
+            afa = AFA.fromDFA dfa :: AFA A S
+         in AFA.accepts afa w `shouldBe` DFA.accepts dfa w
   describe "fromNFA" $ modifyMaxSize (`div` 8) $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'
-            afa = fromNFA nfa :: AFA A S
-         in accepts afa w `shouldBe` accepts nfa w
+            afa = AFA.fromNFA nfa :: AFA A S
+         in AFA.accepts afa w `shouldBe` NFA.accepts nfa w

@@ -2,7 +2,6 @@
 
 module Automata.DFASpec where
 
-import Automata.Class
 import Automata.DFA
 import Data.Alphabet
 import qualified Data.Set as Set

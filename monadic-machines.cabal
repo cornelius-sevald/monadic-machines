@@ -64,11 +64,10 @@ library
         Data.Alphabet
         Data.ListList
         Data.Proposition
-        Automata.Monadic
-        Automata.Class
         Automata.DFA
         Automata.NFA
         Automata.AFA
+        Automata.Monadic
 
     -- Modules included in this library but not exported.
     -- other-modules:

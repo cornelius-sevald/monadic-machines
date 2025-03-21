@@ -2,8 +2,9 @@
 
 module Automata.NFASpec where
 
-import Automata.Class
-import Automata.NFA
+import qualified Automata.DFA as DFA
+import Automata.NFA (NFA)
+import qualified Automata.NFA as NFA
 import Data.Alphabet
 import Data.NAry (NAry)
 import Test.Hspec
@@ -25,11 +26,11 @@ spec = do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa' :: NFA A S
-            dfa = toDFA nfa
-         in accepts dfa w `shouldBe` accepts nfa w
+            dfa = NFA.toDFA nfa
+         in DFA.accepts dfa w `shouldBe` NFA.accepts nfa w
   describe "fromDFA" $ do
     prop "recognizes the same language" $ do
       \dfa' w ->
         let dfa = mkDFA dfa'
-            nfa = fromDFA dfa :: NFA A S
-         in accepts nfa w `shouldBe` accepts dfa w
+            nfa = NFA.fromDFA dfa :: NFA A S
+         in NFA.accepts nfa w `shouldBe` DFA.accepts dfa w

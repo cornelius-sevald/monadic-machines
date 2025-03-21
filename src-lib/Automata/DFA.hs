@@ -3,9 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Deterministic finite automata
-module Automata.DFA (DFA (..), step) where
+module Automata.DFA (DFA (..), accepts, step) where
 
-import qualified Automata.Class
 import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.Generics
@@ -40,6 +39,3 @@ accepts m xs = r_n `Set.member` final m
   where
     r_0 = start m
     r_n = foldl (step m) r_0 xs
-
-instance (Ord s) => Automata.Class.Acceptor DFA a s where
-  accepts = accepts

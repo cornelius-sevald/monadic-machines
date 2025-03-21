@@ -3,9 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Non-deterministic finite automata
-module Automata.NFA (NFA (..), stepE, step, prefinal, fromDFA, toDFA) where
+module Automata.NFA (NFA (..), accepts, stepE, step, prefinal, fromDFA, toDFA) where
 
-import qualified Automata.Class
 import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
 import Data.Foldable (foldl')
@@ -95,6 +94,3 @@ toDFA nfa =
     delta (rs, x) =
       let d r = step nfa r x
        in Set.unions $ Set.map d rs
-
-instance (Ord s) => Automata.Class.Acceptor NFA a s where
-  accepts = accepts
