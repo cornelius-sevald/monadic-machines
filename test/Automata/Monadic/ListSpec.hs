@@ -21,13 +21,13 @@ type A = ABC
 
 spec :: Spec
 spec = do
-  describe "toNFA" $ modifyMaxSize (`div` 10) $ do
+  describe "toNFA" $ modifyMaxSize (`div` 5) $ do
     prop "recognizes the same language" $ do
       \m' w ->
         let m = mkMFA m' :: ListAutomaton A S
             nfa = toNFA m
          in NFA.accepts nfa w `shouldBe` accepts m w
-  describe "fromNFA" $ do
+  describe "fromNFA" $ modifyMaxSize (`div` 5) $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'

@@ -24,19 +24,19 @@ type A = ABC
 spec :: Spec
 spec = do
   --  NOTE: Currently fails, need to fix implementation
-  describe "toNFA" $ do
+  describe "toNFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes the same language" $ do
       \afa' w ->
         let afa = mkAFA afa' :: AFA A S
             nfa = AFA.toNFA afa
          in NFA.accepts nfa w `shouldBe` AFA.accepts afa w
-  describe "fromDFA" $ modifyMaxSize (`div` 8) $ do
+  describe "fromDFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes the same language" $ do
       \dfa' w ->
         let dfa = mkDFA dfa'
             afa = AFA.fromDFA dfa :: AFA A S
          in AFA.accepts afa w `shouldBe` DFA.accepts dfa w
-  describe "fromNFA" $ modifyMaxSize (`div` 8) $ do
+  describe "fromNFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'

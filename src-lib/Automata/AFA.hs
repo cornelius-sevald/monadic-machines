@@ -7,9 +7,7 @@
 module Automata.AFA
   ( AFA (..),
     accepts,
-    _H,
-    _G,
-    stepG,
+    steps,
     fromDFA,
     fromNFA,
     toNFA,
@@ -20,25 +18,30 @@ import Automata.DFA (DFA)
 import qualified Automata.DFA as DFA
 import Automata.NFA (NFA)
 import qualified Automata.NFA as NFA
-import Data.Sequence (Seq (..))
-import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
 import GHC.Generics (Generic)
 
+-- | Compute the corresponding set of an indicator function.
+indicate :: (Ord a, Finite a) => (a -> Bool) -> Set a
+indicate f = Set.fromList $ [x | x <- universeF, f x]
+
 -- | An alternating finite automaton is a 5-tuple
---  (Q, Σ, δ, q_0, F), where
+--  (Q, Σ, g, s_1, F), where
 --
 --    1. Q is a finite set called the *states*,
 --    2. Σ is a finite set called the *alphabet*,
 --    3. g : Q → Σ × P(Q) → {0,1} is the *transition function*,
---    4. q_0 ∈ Q is the *start state*, and
---    5. F ⊆ Q is the *set of final states*. [1]
+--    4. s_1 ∈ Q is the *start state*, and
+--    5. F ⊆ Q is the *set of final states*.
 --
--- The states and alphabet is implicitly given by the type.
+-- This is based on the definition from [1] and [2],
+-- however we represent {0,1}^Q -- that is, the set of all mappings from Q into {0, 1} --
+-- instead as the powerset of Q such that for u ∈ {0,1}^Q,
+-- we define the corresponding r ∈ P(Q) as q ∈ r ⇔ u(q) = 1 for all q ∈ Q.
 data AFA a s = AFA
-  { -- | The start state q_0.
+  { -- | The start state s_1.
     start :: s,
     -- | The set of final states F.
     final :: Set s,
@@ -47,100 +50,101 @@ data AFA a s = AFA
   }
   deriving (Generic)
 
--- | The inductive H function defined in [1].
--- We use a set of states rather than bit-vectors.
-_H :: (Ord s, Finite s) => AFA a s -> s -> Seq a -> Set s -> Bool
-_H _ i Empty u = i `Set.member` u
-_H afa i (a :<| x) u =
-  let g = trans afa
-      hs = Set.filter (\j -> _H afa j x u) $ Set.fromList universeF
-   in g i (a, hs)
-
-stepG :: (Ord s, Finite s) => AFA a s -> a -> Set s -> Set s
-stepG afa a u =
-  let g = trans afa
-   in Set.filter (\j -> g j (a, u)) $ Set.fromList universeF
-
--- | The inductive G function defined in [1].
--- We use a set of states rather than bit-vectors.
-_G :: (Ord s, Finite s) => AFA a s -> s -> Seq a -> Set s -> Bool
-_G _ i Empty u = i `Set.member` u
-_G afa i (x :|> a) u = _G afa i x $ stepG afa a u
+-- | The transition function extended to a mapping of
+-- Q into the set of all mappings of Σ* × P(Q) into {0, 1}.
+--
+-- Adapdet from [2].
+steps :: (Show s, Ord s, Finite s) => AFA a s -> s -> ([a], Set s) -> Bool
+steps afa q (w, u) = case w of
+  [] -> q `Set.member` u
+  (a : v) -> gq (a, indicate $ g (v, u))
+  where
+    gq = trans afa q
+    g (x, r) u' = steps afa u' (x, r)
 
 -- | Does the AFA accept the input string @xs@?
--- TODO: Test that this works.
-accepts :: (Ord s, Finite s) => AFA a s -> [a] -> Bool
-accepts m xs =
-  let xs' = Seq.fromList xs
-   in _H m (start m) xs' (final m)
+--
+-- TODO: Test that this works with some examples.
+accepts :: (Show s, Ord s, Finite s) => AFA a s -> [a] -> Bool
+accepts m w = steps m (start m) (w, indicate f)
+  where
+    f q = q `Set.member` final m
 
--- | To convert a NFA to a DFA, first assume that the NFA has no ε-transitions.
--- Then the transition function $g$ of the AFA for state $q$ and input symbol $x$
--- is true iff. the input set of states $rs$ is the result of the transition function $δ$ of the NFA, i.e.
+-- | From an n-state AFA (Q, Σ, g, q_1, F), and assuming wlog. that q_0 ∉ Q,
+-- construct an equivalent (2^n + 1)-state NFA (P(Q) ∪ {q_0}, Σ, δ, q_0, {F}).
 --
--- >  g(q)(x, rs) ⇔ δ(q, x) = rs.
+-- The construction works as follows:
 --
--- To account for the ε-transitions, instead of using δ directly we use the ε-closure of the transition function.
-fromNFA :: (Ord s, Finite s) => NFA a s -> AFA a s
+-- Let I : (A → {0,1}) → P(A) be defined as:
+--
+--   I(f) = { x | x <- A, f x },
+--
+-- that is, if f is the characteristic function of set X ⊆ A, then I(f) = X.
+--
+-- We then construct a (2^n)-state NNFA (P(Q), Σ, Δ, S, {F}) with no ε-transitions,
+-- that is, an NFA with a non-deterministic start, as follows:
+--
+--   Δ(u, a) = { u' | u' ∈ P(Q), I(g'(a, u')) = u }
+--   S = { u | u ∈ P(Q), q_1 ∈ u}
+--
+-- where g'(a, u') q = g(q)(a, u').
+-- This construction is adapted from section 4 of [2].
+--
+-- To convert the NNFA to an NFA,
+-- we then add an additional dedicated start state q_0,
+-- and connect it with ε-transitions like so:
+--
+--   δ(u,   a) = Δ(u, a)
+--   δ(u,   ε) = ∅
+--   δ(q_0, a) = ∅
+--   δ(q_0, ε) = S
+toNFA :: (Show s, Ord s, Finite s) => AFA a s -> NFA a (Maybe (Set s))
+toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
+  where
+    -- The set of starting states of the NNFA.
+    starts = [Just u | u <- universeF, start afa `Set.member` u]
+    -- The starting state of the NFA.
+    _start = Nothing
+    -- The final states of the NFA.
+    _final = Set.singleton $ Just $ final afa
+    -- The non-ε-transitions of the NFA.
+    _trans (Just u, Just a) =
+      let g' x q = trans afa q x
+       in [Just u' | u' <- universeF, indicate (g' (a, u')) == u]
+    -- We connect the start state of the NFA to all start states of the NNFA
+    -- with ε-transitions.
+    _trans (Nothing, Nothing) = starts
+    _trans _ = []
+
+-- | Convert an NFA M = (Q, Σ, δ, s_1, F)
+-- to an equivalent AFA (Q, Σ, g, s_1, F'),
+-- where g is defined as follows:
+--
+--   g(q)(a, u) = 1 ⇔ ∃p ∈ Δ(q, a). p ∈ u.
+--
+-- where Δ(q, a) is defined as the ε-closure of δ(q, a),
+-- and F' are the prefinal states of M, that is,
+-- the set of states from which F is reachable while consuming no input.
+--
+-- Adapted from [2].
+fromNFA :: (Show s, Ord s, Finite s) => NFA a s -> AFA a s
 fromNFA nfa = AFA {start = _start, final = _final, trans = _trans}
   where
     _start = NFA.start nfa
     _final = NFA.prefinal nfa
     _trans q (a, u) =
-      let r = NFA.step nfa q a
-       in not $ Set.null $ Set.intersection r u
+      let ps = NFA.step nfa q a
+       in any (`Set.member` u) ps
 
--- | To convert a DFA to an AFA,
--- we let the transition function $g$ of the AFA for state $q$ and input symbol $x$
--- be true iff. the input set of states $rs$ is a singleton $r$, which is the result
--- of the transition function δ of the DFA, i.e.
---
--- >  g(q)(x, rs) ⇔ rs = { r } ∧ δ(q, x) = r.
-fromDFA :: (Ord s) => DFA a s -> AFA a s
+-- | Convert a DFA (Q, Σ, δ, s_1, F) to an equivalent AFA (Q, Σ, g, s_1, F).
+-- This is implemented similarly to `fromNFA`,
+-- simply treating the DFA as an NFA which always has only one possible next state.
+fromDFA :: (Show s, Ord s) => DFA a s -> AFA a s
 fromDFA dfa = AFA {start = _start, final = _final, trans = _trans}
   where
     _start = DFA.start dfa
     _final = DFA.final dfa
-    _trans q (x, rs) = DFA.step dfa q x `Set.member` rs
-
--- | To convert an AFA (Q, Σ, s, F, g)
--- to an NFA (P(Q), Σ, s', F, δ),
--- we first construct an NNFA -- a non-determinstic starting-state NFA, i.e. an NFA with a set of starting states --
--- with the transition function defined as follows:
---
--- >  δ(qs, x) = rs ⇔ g(q, x, rs)
---
--- for all $q ∈ qs$ and $rs ∈ P(Q)$,
--- and set of starting states:
---
--- >  S = { qs | s ∈ qs }.[2]
---
--- To convert this NNFA to an equvalent NFA,
--- we let $\{ s \}$ be the starting state and create a ε-transition
--- from $\{ s \}$ to each $q ∈ S$.
---
--- TODO: FIX THIS
-toNFA :: (Ord s, Finite s) => AFA a s -> NFA a (Set s)
-toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
-  where
-    -- The set of starting states of the NNFA.
-    starts = [qs | qs <- universeF, start afa `Set.member` qs]
-    -- The starting state of the NFA, just a singleton of the AFA starting state.
-    _start = Set.singleton (start afa)
-    -- The final states of the NFA, just a singleton of the AFA final states.
-    _final = Set.singleton (final afa)
-    -- The non-ε-transitions of the NFA, as defined above.
-    _trans (qs, Just x) = [rs | rs <- universeF, q <- Set.toList qs, trans afa q (x, rs)]
-    -- We connect the start state of the NFA to all start states of the NNFA
-    -- with ε-transitions.
-    _trans (qs, Nothing)
-      | qs == _start = starts
-      | otherwise = []
-
--- TODO: Maybe write a dedicated function for this rather than just using `NFA.toDFA`.
--- TODO: Test that this works
--- toDFA :: (Ord s, Finite s) => AFA a s -> DFA a (Set (Set s))
--- toDFA = NFA.toDFA . toNFA
+    _trans q (a, u) = DFA.step dfa q a `Set.member` u
 
 {- Bibliography
  - ~~~~~~~~~~~~
