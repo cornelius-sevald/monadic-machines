@@ -10,13 +10,13 @@ import qualified Data.Set as Set
 import GHC.Generics
 
 -- | A deterministic finite automaton is a 5-tuple
---  ($Q, \Sigma, \delta, q_0, F$), where
+--  (Q, Σ, δ, q_1, F), where
 --
---    1. $Q$ is a finite set called the *states*,
---    2. $\Sigma$ is a finite set called the *alphabet*,
---    3. $\delta : Q \times \Sigma \rightarrow Q$ is the transition function,
---    4. $q_0 \in Q$ is the *start state*, and
---    5. $F \subseteq Q$ is the *set of final states*. [@sipser_introduction_2013]
+--    1. Q is a finite set called the *states*,
+--    2. Σ is a finite set called the *alphabet*,
+--    3. δ : Q × Σ → Q is the transition function,
+--    4. q_1 ∈ Q is the *start state*, and
+--    5. F ⊆ Q is the *set of final states*. [1]
 --
 -- The states and alphabet is implicitly given by the type.
 data DFA a s = DFA
@@ -39,3 +39,8 @@ accepts m xs = r_n `Set.member` final m
   where
     r_0 = start m
     r_n = foldl (step m) r_0 xs
+
+{- Bibliography
+ - ~~~~~~~~~~~~
+ - [1]: M. Sipser, Introduction to the theory of computation, Third edition. Cengage Learning, 2013.
+-}

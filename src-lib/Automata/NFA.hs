@@ -14,21 +14,21 @@ import Data.Universe.Class (Finite (universeF))
 import GHC.Generics (Generic)
 
 -- | A non-deterministic finite automaton is a 5-tuple
---  ($Q, \Sigma, \delta, q_0, F$), where
+--  (Q, Σ, δ, q_1, F), where
 --
---    1. $Q$ is a finite set called the *states*,
---    2. $\Sigma$ is a finite set called the *alphabet*,
---    3. $\delta : Q \times \Sigma_\epsilon \rightarrow \mathcal{P}(Q)$ is the transition function,
---    4. $q_0 \in Q$ is the *start state*, and
---    5. $F \subseteq Q$ is the *set of final states*. [@sipser_introduction_2013]
+--    1. Q is a finite set called the *states*,
+--    2. Σ is a finite set called the *alphabet*,
+--    3. δ : Q × Σ_ε → P(Q) is the transition function,
+--    4. q_1 ∈ Q is the *start state*, and
+--    5. F ⊆ Q is the *set of final states*. [1]
 --
 -- The states and alphabet is implicitly given by the type.
 data NFA a s = NFA
-  { -- | The start state $q_0$.
+  { -- | The start state q_1.
     start :: s,
-    -- | The set of final states $F$.
+    -- | The set of final states F.
     final :: Set s,
-    -- | The transition function $\delta$.
+    -- | The transition function δ.
     trans :: (s, Maybe a) -> [s]
   }
   deriving (Generic)
@@ -57,8 +57,8 @@ step nfa q x =
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
 accepts nfa xs = any (`Set.member` final nfa) r_n
   where
-    r_0 = stepE nfa $ start nfa
-    r_n' = foldl' f r_0 xs
+    r_1 = stepE nfa $ start nfa
+    r_n' = foldl' f r_1 xs
     r_n = Set.unions $ Set.map (stepE nfa) r_n'
     f qs x = Set.unions $ Set.map (step' x) qs
     step' x q = step nfa q x
@@ -94,3 +94,8 @@ toDFA nfa =
     delta (rs, x) =
       let d r = step nfa r x
        in Set.unions $ Set.map d rs
+
+{- Bibliography
+ - ~~~~~~~~~~~~
+ - [1]: M. Sipser, Introduction to the theory of computation, Third edition. Cengage Learning, 2013.
+-}
