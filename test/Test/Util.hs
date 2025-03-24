@@ -8,6 +8,11 @@ import qualified Automata.NFA as NFA
 import Data.Set (Set)
 import Test.QuickCheck
 
+isqrt :: Int -> Int
+isqrt x =
+  let y = sqrt $ fromIntegral x :: Double
+   in floor y
+
 mkDFA :: (s, Set s, Fun (s, a) s) -> DFA.DFA a s
 mkDFA (start, final, trans') =
   DFA.DFA

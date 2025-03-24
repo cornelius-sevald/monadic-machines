@@ -6,7 +6,7 @@ module Automata.Monadic.Proposition where
 import Automata.AFA (AFA (AFA))
 import qualified Automata.AFA as AFA
 import Automata.Monadic
-import Data.Proposition
+import Data.Logic.Proposition
 
 type PropositionAutomaton a s = AutomatonM a Proposition s
 

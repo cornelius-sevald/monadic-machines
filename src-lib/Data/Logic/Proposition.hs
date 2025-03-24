@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 
-module Data.Proposition where
+module Data.Logic.Proposition where
 
 import Control.Applicative (liftA2)
 import Control.Monad (ap)

@@ -3,12 +3,12 @@ module Main (main) where
 import qualified Automata.AFASpec
 import qualified Automata.DFASpec
 import qualified Automata.Monadic.IdentitySpec
-import qualified Automata.Monadic.ListListSpec
 import qualified Automata.Monadic.ListSpec
 import qualified Automata.Monadic.PropositionSpec
 import qualified Automata.NFASpec
 import qualified Data.ListListSpec
-import qualified Data.PropositionSpec
+import qualified Data.Logic.NormalFormSpec
+import qualified Data.Logic.PropositionSpec
 import Test.Hspec
 
 main :: IO ()
@@ -18,8 +18,9 @@ spec :: Spec
 spec = do
   describe "Data" $ do
     describe "ListList" Data.ListListSpec.spec
-  describe "Data" $ do
-    describe "Proposition" Data.PropositionSpec.spec
+    describe "Logic" $ do
+      describe "Proposition" Data.Logic.PropositionSpec.spec
+      describe "NormalForm" Data.Logic.NormalFormSpec.spec
   describe "Automata" $ do
     describe "DFA" Automata.DFASpec.spec
     describe "NFA" Automata.NFASpec.spec
@@ -27,5 +28,4 @@ spec = do
     describe "Monadic Automata" $ do
       describe "Identity Automata" Automata.Monadic.IdentitySpec.spec
       describe "List Automata" Automata.Monadic.ListSpec.spec
-      describe "ListList Automata" Automata.Monadic.ListListSpec.spec
       describe "Proposition Automata" Automata.Monadic.PropositionSpec.spec

@@ -9,10 +9,10 @@
 {-# HLINT ignore "Use >=>" #-}
 {-# HLINT ignore "Alternative law, left identity" #-}
 {-# HLINT ignore "Alternative law, right identity" #-}
-module Data.PropositionSpec where
+module Data.Logic.PropositionSpec where
 
 import Data.Functor.Identity (Identity (Identity))
-import Data.Proposition
+import Data.Logic.Proposition
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck

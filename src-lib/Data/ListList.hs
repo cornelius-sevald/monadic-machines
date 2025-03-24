@@ -1,7 +1,16 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.ListList (ListList (..), toList, fromList, toSet, fromSet, asCNF) where
+module Data.ListList
+  ( ListList (..),
+    toList,
+    fromList,
+    toSet,
+    fromSet,
+    asCNF,
+    asDNF,
+  )
+where
 
 import Control.Applicative
 import Data.Function (on)
@@ -35,9 +44,11 @@ fromSet = ListList . fmap Set.toList . Set.toList
 
 -- | Evaluate the list-of-lists as a CNF formula.
 asCNF :: (a -> Bool) -> ListList a -> Bool
-asCNF f xss =
-  let yss = getListList $ f <$> xss
-   in all or yss
+asCNF f xss = all or $ toList $ f <$> xss
+
+-- | Evaluate the list-of-lists as a DNF formula.
+asDNF :: (a -> Bool) -> ListList a -> Bool
+asDNF f xss = any and $ toList $ f <$> xss
 
 -- | For our purposes we treat both levels of lists as sets,
 -- and so we convert each list-of-lists to a set-of-sets before comparing.
