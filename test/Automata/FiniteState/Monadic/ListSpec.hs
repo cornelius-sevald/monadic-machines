@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 
-module Automata.Monadic.ListSpec where
+module Automata.FiniteState.Monadic.ListSpec where
 
-import Automata.Monadic.List
-import qualified Automata.NFA as NFA
 import Data.Alphabet
 import Data.NAry (NAry)
+import Automata.FiniteState.Monadic.List
+import qualified Automata.FiniteState.NFA as NFA
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
@@ -24,12 +24,12 @@ spec = do
   describe "toNFA" $ modifyMaxSize isqrt $ do
     prop "recognizes the same language" $ do
       \m' w ->
-        let m = mkMFA m' :: ListAutomaton A S
+        let m = mkMFA m' :: ListFA A S
             nfa = toNFA m
          in NFA.accepts nfa w `shouldBe` accepts m w
   describe "fromNFA" $ modifyMaxSize isqrt $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'
-            m = fromNFA nfa :: ListAutomaton A S
+            m = fromNFA nfa :: ListFA A S
          in accepts m w `shouldBe` NFA.accepts nfa w

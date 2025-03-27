@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 
-module Automata.Monadic.IdentitySpec where
+module Automata.FiniteState.Monadic.IdentitySpec where
 
-import qualified Automata.DFA as DFA
-import Automata.Monadic.Identity
 import Data.Alphabet
 import Data.NAry (NAry)
+import qualified Automata.FiniteState.DFA as DFA
+import Automata.FiniteState.Monadic.Identity
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
@@ -24,12 +24,12 @@ spec = do
   describe "toDFA" $ do
     prop "recognizes the same language" $ do
       \m' w ->
-        let m = mkMFA m' :: IdentityAutomaton A S
+        let m = mkMFA m' :: IdentityFA A S
             dfa = toDFA m
          in DFA.accepts dfa w `shouldBe` accepts m w
   describe "fromDFA" $ do
     prop "recognizes the same language" $ do
       \dfa' w ->
         let dfa = mkDFA dfa'
-            m = fromDFA dfa :: IdentityAutomaton A S
+            m = fromDFA dfa :: IdentityFA A S
          in accepts m w `shouldBe` DFA.accepts dfa w

@@ -1,11 +1,11 @@
 -- | Automata generalized with a mondaic transition function.
-module Automata.Monadic (AutomatonM (..), stepM, acceptsM) where
+module Automata.FiniteState.Monadic (MonadicFA (..), stepMFA, runMFA) where
 
 import Control.Monad (foldM)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
--- | A Monadic Automata is a generalization of finite state machines,
+-- | A Monadic Finite Automaton is a generalization of finite state machines,
 -- and is defined by an 8-tuple
 --  ($M, Q, \Sigma, \delta_q, \delta_r, q_0, F$), where
 --
@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 --    5. $\delta : Q \times \Sigma \rightarrow M(Q)$ is the *monadic transition function*,
 --    7. $q_0 \in Q$ is the *start state*, and
 --    8. $F \subseteq Q$ is the *set of final states*.
-data AutomatonM a m s = AutomatonM
+data MonadicFA a m s = MonadicFA
   { -- | The start state $q_0$.
     start :: s,
     -- | The set of final states $F$.
@@ -24,11 +24,11 @@ data AutomatonM a m s = AutomatonM
     trans :: (s, a) -> m s
   }
 
-stepM :: AutomatonM a m s -> s -> a -> m s
-stepM m = curry (trans m)
+stepMFA :: MonadicFA a m s -> s -> a -> m s
+stepMFA m = curry (trans m)
 
-acceptsM :: (Ord s, Monad m) => AutomatonM a m s -> [a] -> m Bool
-acceptsM m xs = do
+runMFA :: (Ord s, Monad m) => MonadicFA a m s -> [a] -> m Bool
+runMFA m xs = do
   let q_0 = start m
-  q_n <- foldM (stepM m) q_0 xs
+  q_n <- foldM (stepMFA m) q_0 xs
   pure $ q_n `Set.member` final m

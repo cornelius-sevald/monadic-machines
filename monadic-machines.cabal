@@ -65,13 +65,13 @@ library
         Data.ListList
         Data.Logic.NormalForm
         Data.Logic.Proposition
-        Automata.DFA
-        Automata.NFA
-        Automata.AFA
-        Automata.Monadic
-        Automata.Monadic.Identity
-        Automata.Monadic.List
-        Automata.Monadic.Proposition
+        Automata.FiniteState.DFA
+        Automata.FiniteState.NFA
+        Automata.FiniteState.AFA
+        Automata.FiniteState.Monadic
+        Automata.FiniteState.Monadic.Identity
+        Automata.FiniteState.Monadic.List
+        Automata.FiniteState.Monadic.Proposition
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -130,12 +130,12 @@ test-suite monadic-machines-test
         Data.ListListSpec
         Data.Logic.PropositionSpec
         Data.Logic.NormalFormSpec
-        Automata.DFASpec
-        Automata.NFASpec
-        Automata.AFASpec
-        Automata.Monadic.IdentitySpec
-        Automata.Monadic.ListSpec
-        Automata.Monadic.PropositionSpec
+        Automata.FiniteState.DFASpec
+        Automata.FiniteState.NFASpec
+        Automata.FiniteState.AFASpec
+        Automata.FiniteState.Monadic.IdentitySpec
+        Automata.FiniteState.Monadic.ListSpec
+        Automata.FiniteState.Monadic.PropositionSpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

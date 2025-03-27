@@ -1,14 +1,14 @@
 module Main (main) where
 
-import qualified Automata.AFASpec
-import qualified Automata.DFASpec
-import qualified Automata.Monadic.IdentitySpec
-import qualified Automata.Monadic.ListSpec
-import qualified Automata.Monadic.PropositionSpec
-import qualified Automata.NFASpec
 import qualified Data.ListListSpec
 import qualified Data.Logic.NormalFormSpec
 import qualified Data.Logic.PropositionSpec
+import qualified Automata.FiniteState.AFASpec
+import qualified Automata.FiniteState.DFASpec
+import qualified Automata.FiniteState.Monadic.IdentitySpec
+import qualified Automata.FiniteState.Monadic.ListSpec
+import qualified Automata.FiniteState.Monadic.PropositionSpec
+import qualified Automata.FiniteState.NFASpec
 import Test.Hspec
 
 main :: IO ()
@@ -21,11 +21,11 @@ spec = do
     describe "Logic" $ do
       describe "Proposition" Data.Logic.PropositionSpec.spec
       describe "NormalForm" Data.Logic.NormalFormSpec.spec
-  describe "Automata" $ do
-    describe "DFA" Automata.DFASpec.spec
-    describe "NFA" Automata.NFASpec.spec
-    describe "AFA" Automata.AFASpec.spec
-    describe "Monadic Automata" $ do
-      describe "Identity Automata" Automata.Monadic.IdentitySpec.spec
-      describe "List Automata" Automata.Monadic.ListSpec.spec
-      describe "Proposition Automata" Automata.Monadic.PropositionSpec.spec
+  describe "Finite Automata" $ do
+    describe "DFA" Automata.FiniteState.DFASpec.spec
+    describe "NFA" Automata.FiniteState.NFASpec.spec
+    describe "AFA" Automata.FiniteState.AFASpec.spec
+    describe "Monadic FA" $ do
+      describe "Identity FA" Automata.FiniteState.Monadic.IdentitySpec.spec
+      describe "List FA" Automata.FiniteState.Monadic.ListSpec.spec
+      describe "Proposition FA" Automata.FiniteState.Monadic.PropositionSpec.spec

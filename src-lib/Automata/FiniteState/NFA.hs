@@ -3,14 +3,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Non-deterministic finite automata
-module Automata.NFA (NFA (..), accepts, stepE, step, prefinal, fromDFA, toDFA) where
+module Automata.FiniteState.NFA (NFA (..), accepts, stepE, step, prefinal, fromDFA, toDFA) where
 
-import Automata.DFA (DFA)
-import qualified Automata.DFA as DFA
 import Data.Foldable (foldl')
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
+import Automata.FiniteState.DFA (DFA)
+import qualified Automata.FiniteState.DFA as DFA
 import GHC.Generics (Generic)
 
 -- | A non-deterministic finite automaton is a 5-tuple

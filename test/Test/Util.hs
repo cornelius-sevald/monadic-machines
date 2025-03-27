@@ -1,11 +1,11 @@
 -- | Testing utilities.
 module Test.Util where
 
-import qualified Automata.AFA as AFA
-import qualified Automata.DFA as DFA
-import qualified Automata.Monadic as MFA
-import qualified Automata.NFA as NFA
 import Data.Set (Set)
+import qualified Automata.FiniteState.AFA as AFA
+import qualified Automata.FiniteState.DFA as DFA
+import qualified Automata.FiniteState.Monadic as MFA
+import qualified Automata.FiniteState.NFA as NFA
 import Test.QuickCheck
 
 isqrt :: Int -> Int
@@ -43,9 +43,9 @@ mkAFA (start, final, trans') =
   where
     trans s = uncurry (applyFun3 trans' s)
 
-mkMFA :: (Monad m) => (s, Set s, Fun (s, a) (m s)) -> MFA.AutomatonM a m s
+mkMFA :: (Monad m) => (s, Set s, Fun (s, a) (m s)) -> MFA.MonadicFA a m s
 mkMFA (start, final, trans') =
-  MFA.AutomatonM
+  MFA.MonadicFA
     { MFA.trans = trans,
       MFA.start = start,
       MFA.final = final

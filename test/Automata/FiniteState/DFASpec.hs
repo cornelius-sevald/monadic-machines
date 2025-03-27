@@ -1,10 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Automata.DFASpec where
+module Automata.FiniteState.DFASpec where
 
-import Automata.DFA
 import Data.Alphabet
 import qualified Data.Set as Set
+import Automata.FiniteState.DFA
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck

@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Deterministic finite automata
-module Automata.DFA (DFA (..), accepts, step) where
+module Automata.FiniteState.DFA (DFA (..), accepts, step) where
 
 import Data.Set (Set)
 import qualified Data.Set as Set

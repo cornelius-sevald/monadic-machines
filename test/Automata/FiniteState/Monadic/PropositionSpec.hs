@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 
-module Automata.Monadic.PropositionSpec where
+module Automata.FiniteState.Monadic.PropositionSpec where
 
-import qualified Automata.AFA as AFA
-import Automata.Monadic.Proposition
 import Data.Alphabet
 import Data.NAry (NAry)
+import qualified Automata.FiniteState.AFA as AFA
+import Automata.FiniteState.Monadic.Proposition
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
@@ -24,12 +24,12 @@ spec = do
   describe "toAFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes the same language" $ do
       \m' w ->
-        let m = mkMFA m' :: PropositionAutomaton A S
+        let m = mkMFA m' :: PropositionFA A S
             afa = toAFA m
          in AFA.accepts afa w `shouldBe` accepts m w
   describe "fromAFA" $ do
     prop "recognizes the same language" $ do
       \afa' w ->
         let afa = mkAFA afa'
-            m = fromAFA afa :: PropositionAutomaton A S
+            m = fromAFA afa :: PropositionFA A S
          in accepts m w `shouldBe` AFA.accepts afa w

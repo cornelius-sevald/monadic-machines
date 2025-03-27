@@ -1,13 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 
-module Automata.AFASpec where
+module Automata.FiniteState.AFASpec where
 
-import Automata.AFA (AFA)
-import qualified Automata.AFA as AFA
-import qualified Automata.DFA as DFA
-import qualified Automata.NFA as NFA
 import Data.Alphabet
 import Data.NAry (NAry)
+import Automata.FiniteState.AFA (AFA)
+import qualified Automata.FiniteState.AFA as AFA
+import qualified Automata.FiniteState.DFA as DFA
+import qualified Automata.FiniteState.NFA as NFA
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util

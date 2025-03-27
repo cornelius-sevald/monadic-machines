@@ -4,7 +4,7 @@
 
 -- TODO: Test the implementation of the acceptance function.
 -- TODO: Add functions for converting to- and from NFAs (and maybe also DFAs).
-module Automata.AFA
+module Automata.FiniteState.AFA
   ( AFA (..),
     accepts,
     steps,
@@ -14,13 +14,13 @@ module Automata.AFA
   )
 where
 
-import Automata.DFA (DFA)
-import qualified Automata.DFA as DFA
-import Automata.NFA (NFA)
-import qualified Automata.NFA as NFA
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
+import Automata.FiniteState.DFA (DFA)
+import qualified Automata.FiniteState.DFA as DFA
+import Automata.FiniteState.NFA (NFA)
+import qualified Automata.FiniteState.NFA as NFA
 import GHC.Generics (Generic)
 
 -- | Compute the corresponding set of an indicator function.
