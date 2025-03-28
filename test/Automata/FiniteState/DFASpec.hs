@@ -2,12 +2,13 @@
 
 module Automata.FiniteState.DFASpec where
 
+import Automata.FiniteState.DFA
 import Data.Alphabet
 import qualified Data.Set as Set
-import Automata.FiniteState.DFA
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import Test.Util (mkLangGen')
 
 spec :: Spec
 spec = do
@@ -36,21 +37,18 @@ spec = do
 
 {- Example DFAs and associated languages -}
 
-mkLangGen :: (Arbitrary a) => ([a] -> Bool) -> (Gen [a], Gen [a])
-mkLangGen p = (arbitrary `suchThat` p, arbitrary `suchThat` (not . p))
-
 evenOs, unevenOs :: Gen [Bit]
-(evenOs, unevenOs) = mkLangGen p
+(evenOs, unevenOs) = mkLangGen' p
   where
     p = even . length . filter (== O)
 
 endsInI, endsNotInI :: Gen [Bit]
-(endsInI, endsNotInI) = mkLangGen p
+(endsInI, endsNotInI) = mkLangGen' p
   where
     p w = not (null w) && last w == I
 
 containsNoAs, containsAs :: Gen [ABC]
-(containsNoAs, containsAs) = mkLangGen p
+(containsNoAs, containsAs) = mkLangGen' p
   where
     p = (A `notElem`)
 

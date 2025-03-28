@@ -1,17 +1,26 @@
 -- | Testing utilities.
 module Test.Util where
 
-import Data.Set (Set)
 import qualified Automata.FiniteState.AFA as AFA
 import qualified Automata.FiniteState.DFA as DFA
 import qualified Automata.FiniteState.Monadic as MFA
 import qualified Automata.FiniteState.NFA as NFA
+import Data.Set (Set)
 import Test.QuickCheck
 
 isqrt :: Int -> Int
 isqrt x =
   let y = sqrt $ fromIntegral x :: Double
    in floor y
+
+-- | Make a generator for a language from a given predicate.
+mkLangGen :: (Arbitrary a) => ([a] -> Bool) -> Gen [a]
+mkLangGen p = arbitrary `suchThat` p
+
+-- | Make a generator for a language and its complement
+-- from a given predicate.
+mkLangGen' :: (Arbitrary a) => ([a] -> Bool) -> (Gen [a], Gen [a])
+mkLangGen' p = (mkLangGen p, mkLangGen (not . p))
 
 mkDFA :: (s, Set s, Fun (s, a) s) -> DFA.DFA a s
 mkDFA (start, final, trans') =

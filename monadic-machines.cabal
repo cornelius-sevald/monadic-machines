@@ -72,6 +72,7 @@ library
         Automata.FiniteState.Monadic.Identity
         Automata.FiniteState.Monadic.List
         Automata.FiniteState.Monadic.Proposition
+        Automata.PushDown.SipserDPDA
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -136,6 +137,7 @@ test-suite monadic-machines-test
         Automata.FiniteState.Monadic.IdentitySpec
         Automata.FiniteState.Monadic.ListSpec
         Automata.FiniteState.Monadic.PropositionSpec
+        Automata.PushDown.SipserDPDASpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
