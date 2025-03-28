@@ -15,19 +15,21 @@ import Test.Util (mkLangGen)
 spec :: Spec
 spec = do
   describe "Example Sipser DPDAs" $ do
+    describe "An endlessly looping DPDA" $ do
+      let dpda = dpdaLoop
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` SDPDA.accepts dpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` SDPDA.accepts dpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (mirror, nonmirror)
       let dpda = dpdaMirror
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldSatisfy` (not . SDPDA.accepts dpda)) <$> langComp
-    describe "An endlessly looping DPDA" $ do
-      let dpda = dpdaLoop
-      it "accepts the empty string" $ do
-        [] `shouldSatisfy` SDPDA.accepts dpda
-      prop "rejects all non-empty strings" $
-        \w -> getNonEmpty w `shouldSatisfy` (not . SDPDA.accepts dpda)
+        (`shouldNotSatisfy` SDPDA.accepts dpda) <$> langComp
 
 {- Example DPDAs and associated languages -}
 
@@ -60,26 +62,26 @@ dpdaMirror =
         (1, _, _) -> Nothing
         -- In state 2, if we read a 'O' we move to state 3.
         -- If we read a 'I', we move to state 0.
-        (2, Just O, Nothing) -> Just (3, Nothing)
-        (2, Just I, Nothing) -> Just (0, Nothing)
+        (2, Nothing, Just O) -> Just (3, Nothing)
+        (2, Nothing, Just I) -> Just (0, Nothing)
         (2, _, _) -> Nothing
         -- In state 3, we keep reading 'O's
         -- and pushing '+'s to the stack,
         -- until we read a 'I', where we then either
         -- go to state 4 if there is a '+' on the stack,
         -- or directly to state 5 if there is a '$' on the stack.
-        (3, Just O, Nothing) -> Just (3, Just '+')
-        (3, Just I, Just '+') -> Just (4, Nothing)
-        (3, Just I, Just '$') -> Just (5, Nothing)
+        (3, Nothing, Just O) -> Just (3, Just '+')
+        (3, Just '+', Just I) -> Just (4, Nothing)
+        (3, Just '$', Just I) -> Just (5, Nothing)
         (3, _, _) -> Nothing
         -- In state 4, we keep reading 'I's
         -- and popping '+'s from the stack,
         -- until we reach the '$' on the bottom of the stack,
         -- where we then go to state 5.
         -- If we read a 'O', we go to state 0.
-        (4, Just I, Just '+') -> Just (4, Nothing)
-        (4, Just I, Just '$') -> Just (5, Nothing)
-        (4, Just O, Nothing) -> Just (0, Nothing)
+        (4, Just '+', Just I) -> Just (4, Nothing)
+        (4, Just '$', Just I) -> Just (5, Nothing)
+        (4, Nothing, Just O) -> Just (0, Nothing)
         (4, _, _) -> Nothing
         -- In state 5, we simply stay reading no input.
         (5, Nothing, Nothing) -> Just (5, Nothing)
@@ -89,19 +91,19 @@ dpdaMirror =
 
 -- | A DPDA with a loop endlessly growing the stack.
 --
--- It pushes a '0' on the stack,
--- and then pushes 'n+1' on the stack,
--- where 'n' is the previous top of the stack.
+-- It reads a single number, pushes it on the stack,
+-- and then goes in an infinite loop pushing
+-- 'n+1' on the stack, where 'n' is the previous top of the stack.
 --
 -- This should continue until n=255,
 -- where it will overflow and the loop should be detected.
-dpdaLoop :: SipserDPDA Int Bit Word8
+dpdaLoop :: SipserDPDA Int Word8 Word8
 dpdaLoop =
   SipserDPDA
     { start = 1,
-      final = Set.fromList [1],
+      final = Set.fromList [2],
       trans = \case
-        (1, Nothing, Nothing) -> Just (2, Just 0)
-        (2, Nothing, Just n) -> Just (2, Just (n + 1))
+        (1, Nothing, Just n) -> Just (2, Just n)
+        (2, Just n, Nothing) -> Just (2, Just (n + 1))
         (_, _, _) -> Nothing
     }
