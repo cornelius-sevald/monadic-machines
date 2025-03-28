@@ -34,7 +34,7 @@ data SipserDPDA s a t = SipserDPDA
     -- | The set of final states F.
     final :: Set s,
     -- | The transition function δ.
-    trans :: (s, Maybe a, Maybe t) -> Maybe (s, Maybe t)
+    trans :: (s, Maybe t, Maybe a) -> Maybe (s, Maybe t)
   }
 
 -- | Check if we have been in a similar configuration before.
@@ -90,7 +90,7 @@ stepStack dpda s ts a =
         _ -> error "Automata.PushDown.SipserDPDA.stepStack: `length ress` > 2 (this should never happen)"
   where
     go t ts' = do
-      (s', t') <- trans dpda (s, a, t)
+      (s', t') <- trans dpda (s, t, a)
       pure (s', maybeToList t' ++ ts')
 
 -- | Perform a step without consuming any input.
@@ -106,20 +106,20 @@ stepE ::
   (s, [t]) ->
   -- | Either the new state/stack configuration, or the states of the infinte loop.
   Either (s, [t]) [s]
-stepE dpda cs (s, ts) =
+stepE dpda seen c@(s, ts) =
   -- Step the stack, trying both popping the top symbol and leaving it be.
   case stepStack dpda s ts Nothing of
     -- δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
-    Nothing -> Left (s, ts)
+    Nothing -> Left c
     -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
     Just c' ->
-      let cs' = (s, ts) : cs
-       in if beenHere cs' c'
+      let seen' = c : seen
+       in if beenHere seen' c'
             -- If we have been in a similar configuration,
             -- we are in an infinite loop.
-            then Right $ fst <$> cs'
+            then Right $ fst <$> seen'
             -- Otherwise we step on this new configuration.
-            else stepE dpda cs' c'
+            else stepE dpda seen' c'
 
 step :: (Eq s, Eq t) => SipserDPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
 step dpda a (s, ts) =

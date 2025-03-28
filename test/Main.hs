@@ -7,6 +7,7 @@ import qualified Automata.FiniteState.Monadic.ListSpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
 import qualified Automata.PushDown.SipserDPDASpec
+import qualified Automata.PushDown.TwosDPDASpec
 import qualified Data.ListListSpec
 import qualified Data.Logic.NormalFormSpec
 import qualified Data.Logic.PropositionSpec
@@ -32,4 +33,7 @@ spec = do
         describe "List FA" Automata.FiniteState.Monadic.ListSpec.spec
         describe "Proposition FA" Automata.FiniteState.Monadic.PropositionSpec.spec
     describe "Pushdown Automata" $ do
-      Automata.PushDown.SipserDPDASpec.spec
+      describe "Sipser Deterministic PDAs" $ do
+        Automata.PushDown.SipserDPDASpec.spec
+      describe "Two-stack Deterministic PDAs" $ do
+        Automata.PushDown.TwosDPDASpec.spec
