@@ -36,29 +36,21 @@ split :: [x] -> (Maybe x, [x])
 split [] = (Nothing, [])
 split (x : xs) = (Just x, xs)
 
--- | Given a list of previously seen configurations,
--- check if we have been in a similar one,
--- and then return the list of previously seen configs,
--- starting at the first similar one.
--- If no similar configuration is found, returns an empty list.
+-- | Check if we have been in a similar configuration before.
+-- Specifically, check if we have been in a configuration
+-- with the same state, same top of the stack, and not a smaller stack.
 --
--- Specifically, a previous configuration is similar if it
--- has the same state, same input,
--- same top of the stack, and not a larger stack.
---
--- This is like the `existsIn1` function from [1].
-beenHere :: (Eq s, Eq a, Eq t) => [(s, [a], [t])] -> (s, [a], [t]) -> [s]
-beenHere before now = (\(s, _, _) -> s) <$> dropWhile (not . been now) (reverse before)
+-- This is equivalent to the `existsIn` function from [2].
+dejavu :: (Eq s, Eq t) => [(s, [t])] -> (s, [t]) -> Bool
+dejavu before now = any (been now) before
   where
-    been (s, as, ts) (q, bs, us) =
+    been (s, ts) (q, ys) =
       -- States match,
       s == q
-        -- and the inputs match
-        && as == bs
         -- and the top of the stacks match,
-        && listToMaybe ts == listToMaybe us
+        && listToMaybe ts == listToMaybe ys
         -- and the `now` stack has not shrunk.
-        && length ts >= length us
+        && length ts >= length ys
 
 -- | Step the 2sDPDA from one configuration to the next.
 --
@@ -75,8 +67,12 @@ step dpda (s, ts, as) =
           | a == b' -> (s', us ++ ts', b' : as')
           | otherwise -> error "Can't push different symbol from input"
 
--- | Transitively step the 2sDPDA as long as there is input to be read,
--- or new configurations not seen before.
+-- | Transitively step the 2sDPDA until an infinite loop is found.
+--
+-- As each state has exactly one successor,
+-- we will always end up in an infinite loop.
+-- We then return the list of states that were reached
+-- since last reading a new input symbol, as well as the remaining input
 --
 -- The implementation is based on the `stepsTwosDPDA` from [1],
 -- but I found that it can loop forever by bouncing between
@@ -84,20 +80,25 @@ step dpda (s, ts, as) =
 steps ::
   (Eq s, Eq a, Eq t) =>
   TwosDPDA s a t ->
-  [(s, [t], [a])] ->
+  [(s, [t])] ->
   (s, [t], [a]) ->
   ([s], [a])
-steps dpda seen c =
-  let c'@(_, _, a') = step dpda c
-      seen' = c : seen
-   in case beenHere seen' c' of
-        [] -> steps dpda seen' c'
-        ss -> (ss, a')
+steps dpda seen c@(s, t, a) =
+  let c'@(s', t', a') = step dpda c
+      -- If we have read an input symbol, we clear the `seen` list,
+      -- as we are then in a new configuration.
+      -- Otherwise, we add the last state/stack pair to the previously seen ones.
+      seen' = if length a' < length a then [] else (s, t) : seen
+   in if dejavu seen' (s', t')
+        then (fst <$> seen', a')
+        else steps dpda seen' c'
 
 accepts :: (Ord s, Eq a, Eq t) => TwosDPDA s a t -> [a] -> Bool
 accepts dpda as =
   let (ss, a') = steps dpda [] (start dpda, [], as)
-   in null a' && any (`Set.member` final dpda) ss
+   in -- We accept if we have read all input,
+      -- and any of the reachable states from there is a final one.
+      null a' && any (`Set.member` final dpda) ss
 
 {- Bibliography
  - ~~~~~~~~~~~~

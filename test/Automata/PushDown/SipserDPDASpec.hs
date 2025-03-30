@@ -104,6 +104,7 @@ dpdaLoop =
       final = Set.fromList [2],
       trans = \case
         (1, Nothing, Just n) -> Just (2, Just n)
-        (2, Just n, Nothing) -> Just (2, Just (n + 1))
+        (2, Nothing, Nothing) -> Just (3, Nothing)
+        (3, Just n, Nothing) -> Just (3, Just (n + 1))
         (_, _, _) -> Nothing
     }

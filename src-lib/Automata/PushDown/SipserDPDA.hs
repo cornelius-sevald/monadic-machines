@@ -42,8 +42,8 @@ data SipserDPDA s a t = SipserDPDA
 -- with the same state, same top of the stack, and not a smaller stack.
 --
 -- This is equivalent to the `existsIn` function from [2].
-beenHere :: (Eq s, Eq t) => [(s, [t])] -> (s, [t]) -> Bool
-beenHere before now = any (been now) before
+dejavu :: (Eq s, Eq t) => [(s, [t])] -> (s, [t]) -> Bool
+dejavu before now = any (been now) before
   where
     been (s, ts) (q, ys) =
       -- States match,
@@ -63,7 +63,7 @@ firstFinal dpda = find (\(s, _) -> s `Set.member` final dpda)
 -- | Perform a step in state `s` with (optional) input symbol `a`.
 --
 -- The step can either pop the stack or leave it be, but may not do both,
--- or it may be indefined for the given (or not given) input symbol.
+-- or it may be undefined for the given (or not given) input symbol.
 -- We try both, and choose whichever one was successful (if any),
 -- and return `Just` the successor state, along with the remaining stack.
 -- If none of the two options were successful, we return `Nothing`,
@@ -114,7 +114,7 @@ stepE dpda seen c@(s, ts) =
     -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
     Just c' ->
       let seen' = c : seen
-       in if beenHere seen' c'
+       in if dejavu seen' c'
             -- If we have been in a similar configuration,
             -- we are in an infinite loop.
             then Right $ fst <$> seen'
