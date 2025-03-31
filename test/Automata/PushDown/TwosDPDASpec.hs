@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Automata.PushDown.TwosDPDASpec where
 
@@ -60,20 +61,20 @@ dpdaMirror =
     { start = 1,
       final = Set.fromList [3],
       trans = \case
-        (0, _, _) -> (0, [], Nothing)
-        (1, Nothing, Nothing) -> (3, "", Nothing)
-        (1, Nothing, Just O) -> (1, "+", Nothing)
-        (1, Just '+', Just O) -> (1, "++", Nothing)
-        (1, Just '+', Just I) -> (2, "", Nothing)
-        (1, Just '+', Nothing) -> (0, "", Nothing) -- FAIL: no input after 'O's
-        (1, Nothing, Just I) -> (0, "", Nothing) -- FAIL: read 'I' before any 'O's
-        (2, Just '+', Just I) -> (2, "", Nothing)
-        (2, Nothing, Nothing) -> (3, "", Nothing)
-        (2, _, Just O) -> (0, "", Nothing) -- FAIL: read 'O' after 'I'
-        (2, Just '+', Nothing) -> (0, "", Nothing) -- FAIL: not enough 'I's after 'O's
-        (2, Nothing, Just I) -> (0, "", Nothing) -- FAIL: too many 'I's after 'O's
-        (3, Nothing, Nothing) -> (3, "", Nothing)
-        (3, _, _) -> (0, "", Nothing) -- FAIL: either read 'O' after 'I's or too many 'I's
+        (0, _, _) -> (0, [], True)
+        (1, Nothing, Nothing) -> (3, [], True)
+        (1, Nothing, Just O) -> (1, ['+'], True)
+        (1, Just '+', Just O) -> (1, ['+', '+'], True)
+        (1, Just '+', Just I) -> (2, [], True)
+        (1, Just '+', Nothing) -> (0, [], True) -- FAIL: no input after 'O's
+        (1, Nothing, Just I) -> (0, [], True) -- FAIL: read 'I' before any 'O's
+        (2, Just '+', Just I) -> (2, [], True)
+        (2, Nothing, Nothing) -> (3, [], True)
+        (2, _, Just O) -> (0, [], True) -- FAIL: read 'O' after 'I'
+        (2, Just '+', Nothing) -> (0, [], True) -- FAIL: not enough 'I's after 'O's
+        (2, Nothing, Just I) -> (0, [], True) -- FAIL: too many 'I's after 'O's
+        (3, Nothing, Nothing) -> (3, [], True)
+        (3, _, _) -> (0, [], True) -- FAIL: either read 'O' after 'I's or too many 'I's
         c -> error $ "invalid configuration " ++ show c
     }
 
@@ -91,12 +92,12 @@ dpdaLoop =
     { start = 1,
       final = Set.fromList [2],
       trans = \case
-        (0, _, _) -> (0, [], Nothing)
-        (1, Nothing, Just n) -> (2, [n], Nothing)
-        (1, _, Nothing) -> (0, [], Nothing)
-        (2, Just n, Nothing) -> (3, [n], Nothing)
-        (2, _, _) -> (0, [], Nothing)
-        (3, Just n, x) -> (3, [n + 1], x)
-        (3, Nothing, Nothing) -> (0, [], Nothing)
+        (0, _, _) -> (0, [], True)
+        (1, Nothing, Just n) -> (2, [n], True)
+        (1, _, Nothing) -> (0, [], True)
+        (2, Just n, Nothing) -> (3, [n], True)
+        (2, _, _) -> (0, [], True)
+        (3, Just n, _) -> (3, [n + 1], False)
+        (3, Nothing, Nothing) -> (0, [], True)
         c -> error $ "invalid configuration " ++ show c
     }

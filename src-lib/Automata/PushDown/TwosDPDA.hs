@@ -1,6 +1,7 @@
 -- | 2-stack Deterministic Pushdown Automata.
 module Automata.PushDown.TwosDPDA where
 
+import Data.Heart
 import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -10,26 +11,26 @@ import qualified Data.Set as Set
 --   1. Q is a finite set called the *states*,
 --   2. Σ is a finite set called the *input alphabet*,
 --   3. Γ is a finite set called the *stack alphabet*,
---   4. δ : Q × Γ_ε × Σ_ε → Q × Γ^* × Σ_ε is the *transition function*,
+--   4. δ : Q × Γ_ε × Σ_ε → Q × Γ<3 × {0,1} is the *transition function*,
 --   5. q_1 ∈ Q is the *start state*, and
---   6. F ⊆ Q is the set of *accepting states*. [1]
+--   6. F ⊆ Q is the set of *accepting states*.
 --
--- The notation Γ^* denotes the set Γ_ε ∪ Γ ∪ (Γ × Γ) ∪ (Γ × Γ × Γ) ∪ ... .
+-- Modified from the definition in [1].
 --
--- NOTE: We should probably require that Γ^* has a constant upper bound.
--- This could either be done with a dedicated datatype,
--- or a refined list type.
+-- The notation Γ<3 denotes the set {ε} ∪ Γ ∪ (Γ × Γ).
 --
--- NOTE: Putting Σ_ε in the return type is messy and
--- leads to a partial implementation of the step function.
--- Maybe replace it with a boolean flag?
+-- The boolean value returned by the transition function indicates
+-- whether or not the input symbol is consumed or not,
+-- i.e. if we pop the symbol from the input list or merely peek.
+--
+-- TODO: Find a new name now that we have changed the definition.
 --
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a` and `t` respectively.
 data TwosDPDA s a t = TwosDPDA
   { start :: s,
     final :: Set s,
-    trans :: (s, Maybe t, Maybe a) -> (s, [t], Maybe a)
+    trans :: (s, Maybe t, Maybe a) -> (s, Heart t, Bool)
   }
 
 split :: [x] -> (Maybe x, [x])
@@ -59,13 +60,10 @@ step :: (Eq a) => TwosDPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
 step dpda (s, ts, as) =
   let (a', as') = split as
       (t', ts') = split ts
-      (s', us, b) = trans dpda (s, t', a')
-   in case (a', b) of
-        (_, Nothing) -> (s', us ++ ts', as')
-        (Nothing, Just _) -> error "Can't push new symbol on empty input"
-        (Just a, Just b')
-          | a == b' -> (s', us ++ ts', b' : as')
-          | otherwise -> error "Can't push different symbol from input"
+      (s', us, consume) = trans dpda (s, t', a')
+      ts'' = heartToList us ++ ts'
+      as'' = if consume then as' else as
+   in (s', ts'', as'')
 
 -- | Transitively step the 2sDPDA until an infinite loop is found.
 --
