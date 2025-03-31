@@ -1,5 +1,5 @@
 -- | 2-stack Deterministic Pushdown Automata.
-module Automata.PushDown.TwosDPDA where
+module Automata.PushDown.FPDA where
 
 import Data.Heart
 import Data.Maybe (listToMaybe)
@@ -23,11 +23,9 @@ import qualified Data.Set as Set
 -- whether or not the input symbol is consumed or not,
 -- i.e. if we pop the symbol from the input list or merely peek.
 --
--- TODO: Find a new name now that we have changed the definition.
---
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a` and `t` respectively.
-data TwosDPDA s a t = TwosDPDA
+data FPDA s a t = FPDA
   { start :: s,
     final :: Set s,
     trans :: (s, Maybe t, Maybe a) -> (s, Heart t, Bool)
@@ -55,8 +53,8 @@ dejavu before now = any (been now) before
 
 -- | Step the 2sDPDA from one configuration to the next.
 --
--- The implementation is based on the `transitionTwosDPDA` from [1].
-step :: (Eq a) => TwosDPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
+-- The implementation is based on the `transitionFPDA` from [1].
+step :: (Eq a) => FPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
 step dpda (s, ts, as) =
   let (a', as') = split as
       (t', ts') = split ts
@@ -72,12 +70,12 @@ step dpda (s, ts, as) =
 -- We then return the list of states that were reached
 -- since last reading a new input symbol, as well as the remaining input
 --
--- The implementation is based on the `stepsTwosDPDA` from [1],
+-- The implementation is based on the `stepsFPDA` from [1],
 -- but I found that it can loop forever by bouncing between
 -- two different states when there is no input left.
 steps ::
   (Eq s, Eq a, Eq t) =>
-  TwosDPDA s a t ->
+  FPDA s a t ->
   [(s, [t])] ->
   (s, [t], [a]) ->
   ([s], [a])
@@ -91,7 +89,7 @@ steps dpda seen c@(s, t, a) =
         then (fst <$> seen', a')
         else steps dpda seen' c'
 
-accepts :: (Ord s, Eq a, Eq t) => TwosDPDA s a t -> [a] -> Bool
+accepts :: (Ord s, Eq a, Eq t) => FPDA s a t -> [a] -> Bool
 accepts dpda as =
   let (ss, a') = steps dpda [] (start dpda, [], as)
    in -- We accept if we have read all input,

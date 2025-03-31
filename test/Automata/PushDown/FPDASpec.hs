@@ -1,10 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Automata.PushDown.TwosDPDASpec where
+module Automata.PushDown.FPDASpec where
 
-import Automata.PushDown.TwosDPDA (TwosDPDA (..))
-import qualified Automata.PushDown.TwosDPDA as TwosDPDA
+import Automata.PushDown.FPDA (FPDA (..))
+import qualified Automata.PushDown.FPDA as FPDA
 import Data.Alphabet
 import qualified Data.Set as Set
 import Data.Word (Word8)
@@ -19,18 +19,18 @@ spec = do
     describe "An endlessly looping DPDA" $ do
       let dpda = dpdaLoop
       it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` TwosDPDA.accepts dpda
+        [] `shouldNotSatisfy` FPDA.accepts dpda
       prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` TwosDPDA.accepts dpda
+        \n -> [n] `shouldSatisfy` FPDA.accepts dpda
       prop "rejects all strings of length >1" $
-        \n m w -> (n : m : w) `shouldNotSatisfy` TwosDPDA.accepts dpda
+        \n m w -> (n : m : w) `shouldNotSatisfy` FPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (mirror, nonmirror)
       let dpda = dpdaMirror
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` TwosDPDA.accepts dpda) <$> lang
+        (`shouldSatisfy` FPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` TwosDPDA.accepts dpda) <$> langComp
+        (`shouldNotSatisfy` FPDA.accepts dpda) <$> langComp
 
 {- Example DPDAs and associated languages -}
 
@@ -55,9 +55,9 @@ nonmirror = mkLangGen (not . p)
 -- stack to make sure we read the correct amount
 -- The state '3' is the final state, where we accept
 -- the string if there is no more input.
-dpdaMirror :: TwosDPDA Int Bit Char
+dpdaMirror :: FPDA Int Bit Char
 dpdaMirror =
-  TwosDPDA
+  FPDA
     { start = 1,
       final = Set.fromList [3],
       trans = \case
@@ -86,9 +86,9 @@ dpdaMirror =
 --
 -- This should continue until it overflows,
 -- and eventually the loop should be detected.
-dpdaLoop :: TwosDPDA Int Word8 Word8
+dpdaLoop :: FPDA Int Word8 Word8
 dpdaLoop =
-  TwosDPDA
+  FPDA
     { start = 1,
       final = Set.fromList [2],
       trans = \case
