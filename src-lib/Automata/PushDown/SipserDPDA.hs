@@ -1,8 +1,8 @@
 -- | A Sipser Deterministic Pushdown Automata.
 module Automata.PushDown.SipserDPDA where
 
-import Data.List (find)
-import Data.Maybe (catMaybes, listToMaybe, maybeToList)
+import Automata.PushDown.Util
+import Data.Maybe (mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -37,29 +37,6 @@ data SipserDPDA s a t = SipserDPDA
     trans :: (s, Maybe t, Maybe a) -> Maybe (s, Maybe t)
   }
 
--- | Check if we have been in a similar configuration before.
--- Specifically, check if we have been in a configuration
--- with the same state, same top of the stack, and not a smaller stack.
---
--- This is equivalent to the `existsIn` function from [2].
-dejavu :: (Eq s, Eq t) => [(s, [t])] -> (s, [t]) -> Bool
-dejavu before now = any (been now) before
-  where
-    been (s, ts) (q, ys) =
-      -- States match,
-      s == q
-        -- and the top of the stacks match,
-        && listToMaybe ts == listToMaybe ys
-        -- and the `now` stack has not shrunk.
-        && length ts >= length ys
-
--- | Return the first state/stack pair (s, t) for which s is final, if any.
--- Otherwise, return `Nothing`.
---
--- This is similar to the `reachable` function from [2].
-firstFinal :: (Ord s) => SipserDPDA s a t -> [(s, [t])] -> Maybe (s, [t])
-firstFinal dpda = find (\(s, _) -> s `Set.member` final dpda)
-
 -- | Perform a step in state `s` with (optional) input symbol `a`.
 --
 -- The step can either pop the stack or leave it be, but may not do both,
@@ -68,10 +45,8 @@ firstFinal dpda = find (\(s, _) -> s `Set.member` final dpda)
 -- and return `Just` the successor state, along with the remaining stack.
 -- If none of the two options were successful, we return `Nothing`,
 stepStack :: SipserDPDA s a t -> s -> [t] -> Maybe a -> Maybe (s, [t])
-stepStack dpda s ts a =
-  let ress = catMaybes $ case ts of
-        [] -> [go Nothing []]
-        (t : ts') -> [go Nothing ts, go (Just t) ts']
+stepStack pda s ts a =
+  let ress = mapMaybe go $ split01 ts
    in case ress of
         -- both δ(s, ε, a) = ∅ and δ(s, t, a) = ∅.
         [] -> Nothing
@@ -89,8 +64,8 @@ stepStack dpda s ts a =
         -- `ress` clearly has length <= 2, so this should never happen.
         _ -> error "Automata.PushDown.SipserDPDA.stepStack: `length ress` > 2 (this should never happen)"
   where
-    go t ts' = do
-      (s', t') <- trans dpda (s, t, a)
+    go (t, ts') = do
+      (s', t') <- trans pda (s, t, a)
       pure (s', maybeToList t' ++ ts')
 
 -- | Perform a step without consuming any input.
@@ -106,9 +81,9 @@ stepE ::
   (s, [t]) ->
   -- | Either the new state/stack configuration, or the states of the infinte loop.
   Either (s, [t]) [s]
-stepE dpda seen c@(s, ts) =
+stepE pda seen c@(s, ts) =
   -- Step the stack, trying both popping the top symbol and leaving it be.
-  case stepStack dpda s ts Nothing of
+  case stepStack pda s ts Nothing of
     -- δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
     Nothing -> Left c
     -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
@@ -119,17 +94,17 @@ stepE dpda seen c@(s, ts) =
             -- we are in an infinite loop.
             then Right $ fst <$> seen'
             -- Otherwise we step on this new configuration.
-            else stepE dpda seen' c'
+            else stepE pda seen' c'
 
 step :: (Eq s, Eq t) => SipserDPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
-step dpda a (s, ts) =
-  case stepE dpda [] (s, ts) of
+step pda a (s, ts) =
+  case stepE pda [] (s, ts) of
     -- We have reached an infinite loop of states `ss`.
     Right ss -> Right ss
     -- There are no more ε-transition available,
     -- so we know that δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
     Left (s', ts') ->
-      case stepStack dpda s' ts' (Just a) of
+      case stepStack pda s' ts' (Just a) of
         -- δ(s, ε, a) = ∅ and either the stack is empty, or δ(s, t, a) = ∅.
         -- This gives us two cases:
         --   1. if the stack not empty, then neither
@@ -159,17 +134,17 @@ step dpda a (s, ts) =
         Just c' -> Left c'
 
 accepts :: (Ord s, Eq t) => SipserDPDA s a t -> [a] -> Bool
-accepts dpda as = go as (start dpda, [])
+accepts pda as = go as (start pda, [])
   where
     go [] c =
-      case stepE dpda [] c of
+      case stepE pda [] c of
         -- When we have read all input, check if the current state is final.
-        Left (s', _) -> s' `Set.member` final dpda
+        Left (s', _) -> s' `Set.member` final pda
         -- If we have read all input and is in an infinite cycle,
         -- we accept if any of the reachable states are final.
-        Right ss -> any (`Set.member` final dpda) ss
+        Right ss -> any (`Set.member` final pda) ss
     go (a : as') c =
-      case step dpda a c of
+      case step pda a c of
         Left c' -> go as' c'
         -- If we are in an infinite cycle but have not read all input,
         -- we reject the string. [1, p. 131]

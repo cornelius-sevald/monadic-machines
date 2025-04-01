@@ -7,8 +7,7 @@ import Data.Alphabet
 import qualified Data.Set as Set
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.QuickCheck
-import Test.Util (mkLangGen')
+import Test.Util (containsAs, containsNoAs, endsInI, endsNotInI, evenOs, unevenOs)
 
 spec :: Spec
 spec = do
@@ -27,30 +26,15 @@ spec = do
         (`shouldSatisfy` accepts dfa) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldSatisfy` (not . accepts dfa)) <$> langComp
-    context "With L = {w | w contains no 'A's}" $ do
-      let (lang, langComp) = (containsNoAs, containsAs)
-      let dfa = dfaContainsNoAs
+    context "With L = {w | w contains 'A's}" $ do
+      let (lang, langComp) = (containsAs, containsNoAs)
+      let dfa = dfaContainsAs
       prop "accepts strings in L" $ do
         (`shouldSatisfy` accepts dfa) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldSatisfy` (not . accepts dfa)) <$> langComp
 
 {- Example DFAs and associated languages -}
-
-evenOs, unevenOs :: Gen [Bit]
-(evenOs, unevenOs) = mkLangGen' p
-  where
-    p = even . length . filter (== O)
-
-endsInI, endsNotInI :: Gen [Bit]
-(endsInI, endsNotInI) = mkLangGen' p
-  where
-    p w = not (null w) && last w == I
-
-containsNoAs, containsAs :: Gen [ABC]
-(containsNoAs, containsAs) = mkLangGen' p
-  where
-    p = (A `notElem`)
 
 dfaEvenOs :: DFA Bit Int
 dfaEvenOs =
@@ -82,13 +66,13 @@ dfaEndsInI =
         _ -> undefined
     }
 
-dfaContainsNoAs :: DFA ABC Int
-dfaContainsNoAs =
+dfaContainsAs :: DFA ABC Int
+dfaContainsAs =
   DFA
     { start = 1,
-      final = Set.singleton 1,
+      final = Set.singleton 2,
       trans = \case
-        -- In state 1, we transition to the "dead" state 2 on an `A`.
+        -- In state 1, we transition to the final state 2 on an `A`.
         (1, A) -> 2
         (1, B) -> 1
         (1, C) -> 1

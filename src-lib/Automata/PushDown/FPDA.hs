@@ -1,8 +1,8 @@
 -- | 2-stack Deterministic Pushdown Automata.
 module Automata.PushDown.FPDA where
 
+import Automata.PushDown.Util
 import Data.Heart
-import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -31,33 +31,13 @@ data FPDA s a t = FPDA
     trans :: (s, Maybe t, Maybe a) -> (s, Heart t, Bool)
   }
 
-split :: [x] -> (Maybe x, [x])
-split [] = (Nothing, [])
-split (x : xs) = (Just x, xs)
-
--- | Check if we have been in a similar configuration before.
--- Specifically, check if we have been in a configuration
--- with the same state, same top of the stack, and not a smaller stack.
---
--- This is equivalent to the `existsIn` function from [2].
-dejavu :: (Eq s, Eq t) => [(s, [t])] -> (s, [t]) -> Bool
-dejavu before now = any (been now) before
-  where
-    been (s, ts) (q, ys) =
-      -- States match,
-      s == q
-        -- and the top of the stacks match,
-        && listToMaybe ts == listToMaybe ys
-        -- and the `now` stack has not shrunk.
-        && length ts >= length ys
-
 -- | Step the 2sDPDA from one configuration to the next.
 --
 -- The implementation is based on the `transitionFPDA` from [1].
 step :: (Eq a) => FPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
 step dpda (s, ts, as) =
-  let (a', as') = split as
-      (t', ts') = split ts
+  let (a', as') = split1 as
+      (t', ts') = split1 ts
       (s', us, consume) = trans dpda (s, t', a')
       ts'' = heartToList us ++ ts'
       as'' = if consume then as' else as
