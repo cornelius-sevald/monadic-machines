@@ -77,6 +77,7 @@ library
         Automata.PushDown.SipserDPDA
         Automata.PushDown.SipserNPDA
         Automata.PushDown.FPDA
+        Automata.PushDown.Monadic
 
     -- Modules included in this library but not exported.
     -- other-modules:
