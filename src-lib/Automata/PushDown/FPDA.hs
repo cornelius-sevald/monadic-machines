@@ -6,7 +6,8 @@ import Data.Heart
 import Data.Set (Set)
 import qualified Data.Set as Set
 
--- | A 2-stack Pushdown Automaton (2sDPDA), is a 6-tuple (Q, Σ, Γ, δ, q_1, F) where,
+-- | A Functional Pushdown Automaton (FPDA),
+-- is a 6-tuple (Q, Σ, Γ, δ, q_1, F) where,
 --
 --   1. Q is a finite set called the *states*,
 --   2. Σ is a finite set called the *input alphabet*,
@@ -31,10 +32,10 @@ data FPDA s a t = FPDA
     trans :: (s, Maybe t, Maybe a) -> (s, Heart t, Bool)
   }
 
--- | Step the 2sDPDA from one configuration to the next.
+-- | Step the FPDA from one configuration to the next.
 --
 -- The implementation is based on the `transitionFPDA` from [1].
-step :: (Eq a) => FPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
+step :: FPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
 step dpda (s, ts, as) =
   let (a', as') = split1 as
       (t', ts') = split1 ts
@@ -43,7 +44,7 @@ step dpda (s, ts, as) =
       as'' = if consume then as' else as
    in (s', ts'', as'')
 
--- | Transitively step the 2sDPDA until an infinite loop is found.
+-- | Transitively step the FPDA until an infinite loop is found.
 --
 -- As each state has exactly one successor,
 -- we will always end up in an infinite loop.

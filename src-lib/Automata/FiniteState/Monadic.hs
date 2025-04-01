@@ -1,4 +1,4 @@
--- | Automata generalized with a mondaic transition function.
+-- | Finite-state automata generalized with a mondaic transition function.
 module Automata.FiniteState.Monadic (MonadicFA (..), stepMFA, runMFA) where
 
 import Control.Monad (foldM)
@@ -15,6 +15,8 @@ import qualified Data.Set as Set
 --    5. $\delta : Q \times \Sigma \rightarrow M(Q)$ is the *monadic transition function*,
 --    7. $q_0 \in Q$ is the *start state*, and
 --    8. $F \subseteq Q$ is the *set of final states*.
+--
+-- TODO: Update this description, it's outdated.
 data MonadicFA a m s = MonadicFA
   { -- | The start state $q_0$.
     start :: s,
