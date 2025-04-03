@@ -79,8 +79,9 @@ stepsM pda seen c@(s, t, a) =
   -- but even so we still need to return the current state
   -- if there's not more input left.
   --
-  -- Therefore we append the @current@ state to the
-  -- once
+  -- Therefore we append the @current@ state to the set of further
+  -- reachable states, or, if finding the reachable states failed,
+  -- we just return the current state.
   if null reachable
     then current
     else liftM2 Set.union current reachable

@@ -37,6 +37,10 @@ heartToList h = case h of
   Solo x -> [x]
   Duo x y -> [x, y]
 
+maybeToHeart :: Maybe a -> Heart a
+maybeToHeart Nothing = Love
+maybeToHeart (Just x) = Solo x
+
 -- This instance is a little suspect as the 'fromList'
 -- function is partial, but it is also pretty convenient
 -- to be able to use list syntax for constructing 'Heart' values.
