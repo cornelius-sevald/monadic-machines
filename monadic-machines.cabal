@@ -78,6 +78,8 @@ library
         Automata.PushDown.SipserNPDA
         Automata.PushDown.FPDA
         Automata.PushDown.Monadic
+        Automata.PushDown.Monadic.Identity
+        Automata.PushDown.Monadic.List
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -145,6 +147,8 @@ test-suite monadic-machines-test
         Automata.PushDown.SipserDPDASpec
         Automata.PushDown.SipserNPDASpec
         Automata.PushDown.FPDASpec
+        Automata.PushDown.Monadic.IdentitySpec
+        Automata.PushDown.Monadic.ListSpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

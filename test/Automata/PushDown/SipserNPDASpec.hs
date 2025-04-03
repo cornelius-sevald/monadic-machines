@@ -14,8 +14,8 @@ import Test.Util (kOkI, nonkOkI, nonpalindromes, palindromes)
 
 spec :: Spec
 spec = do
-  describe "Example Sipser DPDAs" $ do
-    describe "An endlessly looping DPDA" $ do
+  describe "Example Sipser NPDAs" $ do
+    describe "An endlessly looping PDA" $ do
       let npda = npdaLoop
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` SNPDA.accepts npda

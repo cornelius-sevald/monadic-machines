@@ -1,4 +1,4 @@
--- | Monadic automaton with the `Identity` monad.
+-- | Monadic finite-state automaton with the `Identity` monad.
 -- Equivalent to a deterministic finite automaton.
 module Automata.FiniteState.Monadic.Identity
   ( IdentityFA,
@@ -8,10 +8,10 @@ module Automata.FiniteState.Monadic.Identity
   )
 where
 
-import Data.Functor.Identity
 import Automata.FiniteState.DFA (DFA (DFA))
 import qualified Automata.FiniteState.DFA as DFA
 import Automata.FiniteState.Monadic
+import Data.Functor.Identity
 
 type IdentityFA a s = MonadicFA a Identity s
 

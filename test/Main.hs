@@ -7,6 +7,8 @@ import qualified Automata.FiniteState.Monadic.ListSpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
 import qualified Automata.PushDown.FPDASpec
+import qualified Automata.PushDown.Monadic.IdentitySpec
+import qualified Automata.PushDown.Monadic.ListSpec
 import qualified Automata.PushDown.SipserDPDASpec
 import qualified Automata.PushDown.SipserNPDASpec
 import qualified Data.ListListSpec
@@ -40,3 +42,6 @@ spec = do
         Automata.PushDown.SipserNPDASpec.spec
       describe "Two-stack Deterministic PDAs" $ do
         Automata.PushDown.FPDASpec.spec
+      describe "Monadic PDA" $ do
+        describe "Identity PDA" Automata.PushDown.Monadic.IdentitySpec.spec
+        describe "List PDA" Automata.PushDown.Monadic.ListSpec.spec

@@ -85,7 +85,7 @@ stepsM pda seen c@(s, t, a) =
     then current
     else liftM2 Set.union current reachable
   where
-    current = pure (if null a then Set.empty else [s])
+    current = pure (if null a then [s] else Set.empty)
     reachable = do
       c'@(s', t', a') <- stepM pda c
       -- If we have read an input symbol, we clear the `seen` list,
@@ -100,11 +100,11 @@ stepsM pda seen c@(s, t, a) =
         -- If we have not been in a similar state we continue looping.
         else stepsM pda seen' c'
 
-acceptsM ::
+runMPDA ::
   (Monad m, Foldable m, Ord s, Ord a, Ord t) =>
   MonadicPDA m s a t ->
   [a] ->
   m Bool
-acceptsM pda as =
+runMPDA pda as =
   let ss = stepsM pda [] (start pda, [], as)
    in any (`Set.member` final pda) <$> ss

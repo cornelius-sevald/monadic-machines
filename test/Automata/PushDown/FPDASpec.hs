@@ -10,12 +10,11 @@ import qualified Data.Set as Set
 import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.QuickCheck
-import Test.Util (mkLangGen)
+import Test.Util (kOkI, nonkOkI)
 
 spec :: Spec
 spec = do
-  describe "Example 2sDPDAs" $ do
+  describe "Example FPDA" $ do
     describe "An endlessly looping DPDA" $ do
       let dpda = dpdaLoop
       it "rejects the empty string" $ do
@@ -25,26 +24,14 @@ spec = do
       prop "rejects all strings of length >1" $
         \n m w -> (n : m : w) `shouldNotSatisfy` FPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (mirror, nonmirror)
+      let (lang, langComp) = (kOkI, nonkOkI)
       let dpda = dpdaMirror
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts dpda) <$> langComp
 
-{- Example DPDAs and associated languages -}
-
--- | The language {OᵏIᵏ | k ≥ 0} and its complement.
-mirror, nonmirror :: Gen [Bit]
-mirror = sized $ \n -> do
-  k <- chooseInt (0, n `div` 2)
-  pure $ replicate k O ++ replicate k I
-nonmirror = mkLangGen (not . p)
-  where
-    p w =
-      let n = length w
-          k = n `div` 2
-       in even n && all (== O) (take k w) && all (== I) (drop k w)
+{- Example DPDAs -}
 
 -- | A DPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
 --
