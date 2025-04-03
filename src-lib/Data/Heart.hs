@@ -41,6 +41,12 @@ maybeToHeart :: Maybe a -> Heart a
 maybeToHeart Nothing = Love
 maybeToHeart (Just x) = Solo x
 
+maybesToHeart :: Maybe a -> Maybe a -> Heart a
+maybesToHeart Nothing Nothing = Love
+maybesToHeart Nothing (Just x) = Solo x
+maybesToHeart (Just x) Nothing = Solo x
+maybesToHeart (Just x) (Just y) = Duo x y
+
 -- This instance is a little suspect as the 'fromList'
 -- function is partial, but it is also pretty convenient
 -- to be able to use list syntax for constructing 'Heart' values.

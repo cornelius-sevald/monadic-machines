@@ -1,8 +1,14 @@
+{-# LANGUAGE TupleSections #-}
+
 -- | 2-stack Deterministic Pushdown Automata.
 module Automata.PushDown.FPDA where
 
+import Automata.PushDown.SipserDPDA (SipserDPDA (SipserDPDA))
+import qualified Automata.PushDown.SipserDPDA as SDPDA
 import Automata.PushDown.Util
+import Control.Arrow ((***))
 import Data.Heart
+import Data.Maybe (catMaybes, isJust, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -76,6 +82,57 @@ accepts dpda as =
    in -- We accept if we have read all input,
       -- and any of the reachable states from there is a final one.
       null a' && any (`Set.member` final dpda) ss
+
+fromSipserDPDA :: SipserDPDA s a t -> FPDA s a t
+fromSipserDPDA pda =
+  FPDA
+    { start = SDPDA.start pda,
+      final = SDPDA.final pda,
+      trans = δ'
+    }
+  where
+    splitMaybe x = case x of Nothing -> [Nothing]; Just y -> [Nothing, Just y]
+    δ = SDPDA.trans pda
+    δ' (s, t, a) =
+      let input = (,) <$> splitMaybe t <*> splitMaybe a
+          cs = (\(t', a') -> (s, t', a')) <$> input
+          cs' = do
+            (c, i) <- zip cs input
+            Just c' <- pure $ δ c
+            pure (c', i)
+       in case cs' of
+            -- Case 0: δ(s, ε, ε) = ∅ and either stack and input is empty,
+            -- only stack is empty and δ(s, ε, a) = ∅, or,
+            -- only input is empty and δ(s, t, ε) = ∅.
+            -- In any case, we stay in the same configuration.
+            [] -> (s, maybeToHeart t, False)
+            -- Case 1: δ(s, ε, ε) ≠ ∅.
+            -- We push @t@ and @t'@ to the stack, and consume no input.
+            [((s', t'), (Nothing, Nothing))] -> (s', maybesToHeart t' t, False)
+            -- Case 2: δ(s, t, ε) ≠ ∅.
+            -- We push @t'@ to the stack (implicitly popping @t@), and consume no input.
+            [((s', t'), (Just _, Nothing))] -> (s', maybeToHeart t', False)
+            -- Case 3: δ(s, ε, a) ≠ ∅.
+            -- We push @t@ and @t'@ to the stack, and consume the input.
+            [((s', t'), (Nothing, Just _))] -> (s', maybesToHeart t' t, True)
+            -- Case 4: δ(s, t, a) ≠ ∅.
+            -- We push @t'@ to the stack (implicitly popping @t@), and consume the input.
+            [((s', t'), (Just _, Just _))] -> (s', maybeToHeart t', True)
+            -- Case 5: More than one of δ(s, ε, ε), δ(s, t, ε), δ(s, ε, a), δ(s, t, a)
+            -- is defined, which is an error.
+            -- We construct a nice error message showing for which input δ is defined.
+            _ ->
+              let ε_str x = maybe "ε" (const x)
+                  δ_str (t', a') = "δ(s, " ++ ε_str "t" t' ++ ", " ++ ε_str "a" a' ++ ")"
+                  msg =
+                    "Automata.PushDown.FPDA.fromSipserDPDA: "
+                      ++ "transition function of Sipser DPDA is defined for "
+                      ++ show (δ_str . snd <$> cs')
+                      ++ " but may only be defined for one."
+               in error msg
+
+toSipserDPDA :: FPDA s a t -> SipserDPDA s a t
+toSipserDPDA pda = undefined
 
 {- Bibliography
  - ~~~~~~~~~~~~
