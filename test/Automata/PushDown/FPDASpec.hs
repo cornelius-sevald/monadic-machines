@@ -47,6 +47,22 @@ spec = do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
+  describe "toSipserDPDA" $ do
+    context "With an endlessly looping FDPDA" $ do
+      let sdpda = FPDA.toSipserDPDA fpdaLoop
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` FPDA.acceptsSipserDPDA sdpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda
+    context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
+      let (lang, langComp) = (kOkI, nonkOkI)
+      let sdpda = FPDA.toSipserDPDA fpdaMirror
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` FPDA.acceptsSipserDPDA sdpda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda) <$> langComp
 
 {- Example FPDAs -}
 
