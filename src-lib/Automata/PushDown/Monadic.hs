@@ -6,6 +6,7 @@ module Automata.PushDown.Monadic where
 import Automata.PushDown.Util
 import Control.Monad (liftM2)
 import Data.Heart
+import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -93,7 +94,7 @@ stepsM pda seen c@(s, t, a) =
       -- as we are then in a new configuration.
       -- Otherwise, we add the last state/stack pair to the previously seen ones.
       let seen' = if length a' < length a then [] else Set.insert (s, t) seen
-      if dejavu seen' (s', t')
+      if isJust $ dejavu seen' (s', t')
         -- If we have already seen a similar state,
         -- we can simply return an empty set as we know
         -- that @s'@ has already been appended the last time we saw it.

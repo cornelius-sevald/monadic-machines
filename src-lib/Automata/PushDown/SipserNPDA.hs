@@ -4,7 +4,7 @@
 module Automata.PushDown.SipserNPDA where
 
 import Automata.PushDown.Util
-import Data.Maybe (maybeToList)
+import Data.Maybe (isNothing, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -63,7 +63,7 @@ stepE pda seen c@(s, ts) =
       -- We filter out the already-seen configurations
       -- (or at least those similar enough),
       -- leaving only new configurations.
-      new = Set.filter (not . dejavu seen') cs'
+      new = Set.filter (isNothing . dejavu seen') cs'
    in if null new
         -- If there are no new successor configurations,
         -- then we return the seen configurations.

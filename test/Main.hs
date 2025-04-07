@@ -40,7 +40,7 @@ spec = do
         Automata.PushDown.SipserDPDASpec.spec
       describe "Sipser Non-deterministic PDAs" $ do
         Automata.PushDown.SipserNPDASpec.spec
-      describe "Two-stack Deterministic PDAs" $ do
+      describe "Functional Deterministic PDAs" $ do
         Automata.PushDown.FPDASpec.spec
       describe "Monadic PDA" $ do
         describe "Identity PDA" Automata.PushDown.Monadic.IdentitySpec.spec

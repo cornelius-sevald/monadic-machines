@@ -1,123 +1,116 @@
 {-# LANGUAGE TupleSections #-}
 
--- | 2-stack Deterministic Pushdown Automata.
+-- | Functional Determinstic Pushdown Automata
 module Automata.PushDown.FPDA where
 
 import Automata.PushDown.SipserDPDA (SipserDPDA (SipserDPDA))
 import qualified Automata.PushDown.SipserDPDA as SDPDA
 import Automata.PushDown.Util
-import Control.Arrow ((***))
-import Data.Heart
-import Data.Maybe (catMaybes, isJust, mapMaybe, maybeToList)
+import Data.Foldable (find)
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NE
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 -- | A Functional Pushdown Automaton (FPDA),
--- is a 6-tuple (Q, Σ, Γ, δ, q_1, F) where,
+-- is a 8-tuple (Q, Σ, Γ, δ, γ, Z_1, q_1, F) where,
 --
 --   1. Q is a finite set called the *states*,
 --   2. Σ is a finite set called the *input alphabet*,
 --   3. Γ is a finite set called the *stack alphabet*,
---   4. δ : Q × Γ_ε × Σ_ε → Q × Γ<3 × {0,1} is the *transition function*,
---   5. q_1 ∈ Q is the *start state*, and
---   6. F ⊆ Q is the set of *accepting states*.
+--   4. δ : Q × Γ × Σ → Q × Γ^* × {0,1} is the *input transition function*,
+--   5. γ : Q × Γ → Q is the *stack transition function*,
+--   6. Z_1 ∈ Γ is the *start stack symbol*, and
+--   7. q_1 ∈ Q is the *start state*, and
+--   8. F ⊆ Q is the set of *accepting states*.
 --
--- Modified from the definition in [1].
---
--- The notation Γ<3 denotes the set {ε} ∪ Γ ∪ (Γ × Γ).
---
--- The boolean value returned by the transition function indicates
--- whether or not the input symbol is consumed or not,
--- i.e. if we pop the symbol from the input list or merely peek.
+-- The notation Γ^* denotes the set {ε} ∪ Γ ∪ (Γ × Γ) ∪ ....
 --
 -- The states, input- and stack alphabet is implicitly given by the types
--- `s`, `a` and `t` respectively.
+-- `s`, `a`, `t` respectively.
+--
+-- TODO: Maybe ensure that the amount read from the stack
+-- in the transition function is statically guaranteed to be ≤ n,
+-- perheaps via a refinement type.
 data FPDA s a t = FPDA
   { start :: s,
     final :: Set s,
-    trans :: (s, Maybe t, Maybe a) -> (s, Heart t, Bool)
+    startSymbol :: t,
+    transInput :: (s, t, a) -> (s, [t], Bool),
+    transStack :: (s, t) -> s
   }
 
--- | Step the FPDA from one configuration to the next.
---
--- The implementation is based on the `transitionFPDA` from [1].
-step :: FPDA s a t -> (s, [t], [a]) -> (s, [t], [a])
-step dpda (s, ts, as) =
-  let (a', as') = split1 as
-      (t', ts') = split1 ts
-      (s', us, consume) = trans dpda (s, t', a')
-      ts'' = heartToList us ++ ts'
-      as'' = if consume then as' else as
-   in (s', ts'', as'')
+-- | Step the FPDA from one configuration to the next,
+-- with input symbol @a@.
+stepInput :: FPDA s a t -> (s, NonEmpty t, NonEmpty a) -> (s, [t], [a])
+stepInput dpda (s, t :| ts, a :| as) =
+  let (s', ts', consume) = transInput dpda (s, t, a)
+      as' = if consume then as else a : as
+   in (s', ts' <> ts, as')
 
--- | Transitively step the FPDA until an infinite loop is found.
---
--- As each state has exactly one successor,
--- we will always end up in an infinite loop.
--- We then return the list of states that were reached
--- since last reading a new input symbol, as well as the remaining input
---
--- The implementation is based on the `stepsFPDA` from [1],
--- but I found that it can loop forever by bouncing between
--- two different states when there is no input left.
-steps ::
-  (Eq s, Eq a, Eq t) =>
-  FPDA s a t ->
-  [(s, [t])] ->
-  (s, [t], [a]) ->
-  ([s], [a])
-steps dpda seen c@(s, t, a) =
-  let c'@(s', t', a') = step dpda c
-      -- If we have read an input symbol, we clear the `seen` list,
-      -- as we are then in a new configuration.
-      -- Otherwise, we add the last state/stack pair to the previously seen ones.
-      seen' = if length a' < length a then [] else (s, t) : seen
-   in if dejavu seen' (s', t')
-        then (fst <$> seen', a')
-        else steps dpda seen' c'
+stepsInput :: (Eq s, Eq a, Eq t) => FPDA s a t -> [(s, [t])] -> (s, [t], [a]) -> Maybe (s, [t])
+stepsInput _ _ (s, [], _) = Just (s, [])
+stepsInput _ _ (s, ts, []) = Just (s, ts)
+stepsInput dpda seen (s, t : ts, a : as) =
+  case dejavu seen (s, t : ts) of
+    Just _ -> Nothing
+    Nothing ->
+      let (s', ts', as') = stepInput dpda (s, t :| ts, a :| as)
+          seen' = if as' == (a : as) then (s, t : ts) : seen else []
+       in stepsInput dpda seen' (s', ts', as')
+
+stepStack :: FPDA s a t -> s -> t -> s
+stepStack dpda s t = transStack dpda (s, t)
+
+stepsStack :: FPDA s a t -> s -> [t] -> s
+stepsStack dpda = foldl (stepStack dpda)
 
 accepts :: (Ord s, Eq a, Eq t) => FPDA s a t -> [a] -> Bool
 accepts dpda as =
-  let (ss, a') = steps dpda [] (start dpda, [], as)
-   in -- We accept if we have read all input,
-      -- and any of the reachable states from there is a final one.
-      null a' && any (`Set.member` final dpda) ss
+  case stepsInput dpda [] (start dpda, [startSymbol dpda], as) of
+    Nothing -> False
+    Just (s', ts') ->
+      let s'' = stepsStack dpda s' ts'
+       in s'' `Set.member` final dpda
 
-fromSipserDPDA :: SipserDPDA s a t -> FPDA s a t
+fromSipserDPDA :: (Ord s, Eq t) => SipserDPDA s a t -> FPDA s a (Maybe t)
 fromSipserDPDA pda =
   FPDA
     { start = SDPDA.start pda,
-      final = SDPDA.final pda,
-      trans = δ'
+      startSymbol = Nothing,
+      -- TODO: This needs to be all states reachable from an empty stack w. no input.
+      final = _final,
+      transInput = _transInput,
+      transStack = _transStack
     }
   where
     splitMaybe x = case x of Nothing -> [Nothing]; Just y -> [Nothing, Just y]
+    _final = SDPDA.final pda
     δ = SDPDA.trans pda
-    δ' (s, t, a) =
-      let input = (,) <$> splitMaybe t <*> splitMaybe a
+    _transInput (s, t, a) =
+      let input = (,) <$> splitMaybe t <*> splitMaybe (Just a)
           cs = (\(t', a') -> (s, t', a')) <$> input
           cs' = do
             (c, i) <- zip cs input
             Just c' <- pure $ δ c
             pure (c', i)
        in case cs' of
-            -- Case 0: δ(s, ε, ε) = ∅ and either stack and input is empty,
-            -- only stack is empty and δ(s, ε, a) = ∅, or,
-            -- only input is empty and δ(s, t, ε) = ∅.
-            -- In any case, we stay in the same configuration.
-            [] -> (s, maybeToHeart t, False)
+            -- Case 0: δ(s, ε, ε) = ∅ and stack is empty and δ(s, ε, a) = ∅.
+            -- We stay in the same configuration, leading to a loop.
+            [] -> (s, [t], False)
             -- Case 1: δ(s, ε, ε) ≠ ∅.
             -- We push @t@ and @t'@ to the stack, and consume no input.
-            [((s', t'), (Nothing, Nothing))] -> (s', maybesToHeart t' t, False)
+            [((s', t'), (Nothing, Nothing))] -> (s', (Just <$> maybeToList t') ++ [t], False)
             -- Case 2: δ(s, t, ε) ≠ ∅.
             -- We push @t'@ to the stack (implicitly popping @t@), and consume no input.
-            [((s', t'), (Just _, Nothing))] -> (s', maybeToHeart t', False)
+            [((s', t'), (Just _, Nothing))] -> (s', Just <$> maybeToList t', False)
             -- Case 3: δ(s, ε, a) ≠ ∅.
             -- We push @t@ and @t'@ to the stack, and consume the input.
-            [((s', t'), (Nothing, Just _))] -> (s', maybesToHeart t' t, True)
+            [((s', t'), (Nothing, Just _))] -> (s', (Just <$> maybeToList t') ++ [t], True)
             -- Case 4: δ(s, t, a) ≠ ∅.
             -- We push @t'@ to the stack (implicitly popping @t@), and consume the input.
-            [((s', t'), (Just _, Just _))] -> (s', maybeToHeart t', True)
+            [((s', t'), (Just _, Just _))] -> (s', Just <$> maybeToList t', True)
             -- Case 5: More than one of δ(s, ε, ε), δ(s, t, ε), δ(s, ε, a), δ(s, t, a)
             -- is defined, which is an error.
             -- We construct a nice error message showing for which input δ is defined.
@@ -128,11 +121,18 @@ fromSipserDPDA pda =
                     "Automata.PushDown.FPDA.fromSipserDPDA: "
                       ++ "transition function of Sipser DPDA is defined for "
                       ++ show (δ_str . snd <$> cs')
-                      ++ " but may only be defined for one."
+                      ++ " but may only be defined for one of these."
                in error msg
+    _transStack (s, Nothing) = s
+    _transStack (s, Just t) =
+      case SDPDA.stepE pda [] (s, [t]) of
+        Left cs ->
+          let ss = fst <$> cs
+           in fromMaybe (NE.head ss) $ find (`Set.member` _final) ss
+        Right ss -> fromMaybe (NE.head ss) $ find (`Set.member` _final) ss
 
 toSipserDPDA :: FPDA s a t -> SipserDPDA s a t
-toSipserDPDA pda = undefined
+toSipserDPDA pda = error "TODO: implement"
 
 {- Bibliography
  - ~~~~~~~~~~~~

@@ -22,7 +22,7 @@ spec = do
       prop "accepts all strings of length 1" $
         \n -> [n] `shouldSatisfy` FPDA.accepts dpda
       prop "rejects all strings of length >1" $
-        \n m w -> (n : m : w) `shouldNotSatisfy` FPDA.accepts dpda
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let dpda = dpdaMirror
@@ -35,34 +35,38 @@ spec = do
 
 -- | A DPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
 --
--- The state '0' means the string should be rejected.
--- The state '1' is the start state, where we read 'O's
--- and keep a count of the number via the stack.
--- The state '2' is where we read 'I's, using the
--- stack to make sure we read the correct amount
--- The state '3' is the final state, where we accept
--- the string if there is no more input.
+-- The state 0 means the string should be rejected.
+-- State 1 is the starting and an accepting state,
+-- as the empty string is in the language.
+-- If we read an 'O' we go to state 2 and push a dedicated
+-- end-of-stack symbol '$' and a '+' to the stack.
+-- In state 2 we loop as long as we read 'O's,
+-- pushing the '+' symbol to the stack.
+-- Once we read a 'I', we pop the '+' from the stack and
+-- go to state 3, where we keep popping '+'s as long as we read 'I's.
+--
+-- Once we have read all input, we inspect the stack.
+-- We accept only if we are in either state 1 or state 3 with an empty stack.
 dpdaMirror :: FPDA Int Bit Char
 dpdaMirror =
   FPDA
     { start = 1,
-      final = Set.fromList [3],
-      trans = \case
-        (0, _, _) -> (0, [], True)
-        (1, Nothing, Nothing) -> (3, [], True)
-        (1, Nothing, Just O) -> (1, ['+'], True)
-        (1, Just '+', Just O) -> (1, ['+', '+'], True)
-        (1, Just '+', Just I) -> (2, [], True)
-        (1, Just '+', Nothing) -> (0, [], True) -- FAIL: no input after 'O's
-        (1, Nothing, Just I) -> (0, [], True) -- FAIL: read 'I' before any 'O's
-        (2, Just '+', Just I) -> (2, [], True)
-        (2, Nothing, Nothing) -> (3, [], True)
-        (2, _, Just O) -> (0, [], True) -- FAIL: read 'O' after 'I'
-        (2, Just '+', Nothing) -> (0, [], True) -- FAIL: not enough 'I's after 'O's
-        (2, Nothing, Just I) -> (0, [], True) -- FAIL: too many 'I's after 'O's
-        (3, Nothing, Nothing) -> (3, [], True)
-        (3, _, _) -> (0, [], True) -- FAIL: either read 'O' after 'I's or too many 'I's
-        c -> error $ "invalid configuration " ++ show c
+      final = [1],
+      startSymbol = '$',
+      transInput = \case
+        (0, _, _) -> (0, "", True)
+        (1, '$', O) -> (2, "+$", True)
+        (1, '$', I) -> (0, "$", True) -- REJECT: starting with 'I'
+        (2, '+', O) -> (2, "++", True)
+        (2, '+', I) -> (3, "", True)
+        (3, '+', I) -> (3, "", True)
+        (3, _, O) -> (0, "", True) -- REJECT: 'O' after 'I's
+        (3, '$', _) -> (0, "", True) -- REJECT: Too many 'I's
+        c -> error $ "invalid configuration " ++ show c,
+      transStack = \case
+        (1, '$') -> 1
+        (3, '$') -> 1
+        (_, _) -> 0
     }
 
 -- | A DPDA with a loop endlessly growing the stack.
@@ -73,18 +77,20 @@ dpdaMirror =
 --
 -- This should continue until it overflows,
 -- and eventually the loop should be detected.
-dpdaLoop :: FPDA Int Word8 Word8
+dpdaLoop :: FPDA Int Word8 (Maybe Word8)
 dpdaLoop =
   FPDA
     { start = 1,
       final = Set.fromList [2],
-      trans = \case
-        (0, _, _) -> (0, [], True)
-        (1, Nothing, Just n) -> (2, [n], True)
-        (1, _, Nothing) -> (0, [], True)
-        (2, Just n, Nothing) -> (3, [n], True)
-        (2, _, _) -> (0, [], True)
-        (3, Just n, _) -> (3, [n + 1], False)
-        (3, Nothing, Nothing) -> (0, [], True)
-        c -> error $ "invalid configuration " ++ show c
+      startSymbol = Nothing,
+      transInput = \case
+        (1, Nothing, n) -> (2, [Just n], True)
+        (2, Just n, _) -> (3, [Just n], False)
+        (3, Just n, _) -> (3, [Just $ n + 1], False)
+        c -> error $ "invalid configuration " ++ show c,
+      -- If there is anything on the stack,
+      -- we move to the acceping state.
+      transStack = \case
+        (_, Just _) -> 2
+        (s, _) -> s
     }

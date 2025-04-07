@@ -1,5 +1,6 @@
 module Automata.PushDown.Util (dejavu, split1, split01) where
 
+import Data.Foldable (find)
 import Data.Maybe (listToMaybe)
 
 -- | Check if we have been in a similar configuration before.
@@ -7,8 +8,8 @@ import Data.Maybe (listToMaybe)
 -- with the same state, same top of the stack, and not a smaller stack.
 --
 -- This is equivalent to the `existsIn` function from [2].
-dejavu :: (Eq s, Eq t, Foldable f) => f (s, [t]) -> (s, [t]) -> Bool
-dejavu before now = any (been now) before
+dejavu :: (Eq s, Eq t, Foldable f) => f (s, [t]) -> (s, [t]) -> Maybe (s, [t])
+dejavu before now = find (been now) before
   where
     been (s, ts) (q, ys) =
       -- States match,

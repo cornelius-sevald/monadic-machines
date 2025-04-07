@@ -2,9 +2,11 @@
 module Automata.PushDown.SipserDPDA where
 
 import Automata.PushDown.Util
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe (mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import GHC.IsList
 
 -- | A Sipser Deterministic Pushdown Automaton (SipserDPDA)
 -- is a 6-tuple (Q, Σ, Γ, δ, q_1, F), where
@@ -79,31 +81,32 @@ stepE ::
   [(s, [t])] ->
   -- | The current state/stack configuration.
   (s, [t]) ->
-  -- | Either the new state/stack configuration, or the states of the infinte loop.
-  Either (s, [t]) [s]
+  -- | Either a list of all state/stack configuration encountered until halting,
+  -- or the states encountered until an infinite loop was reached.
+  Either (NonEmpty (s, [t])) (NonEmpty s)
 stepE pda seen c@(s, ts) =
   -- Step the stack, trying both popping the top symbol and leaving it be.
   case stepStack pda s ts Nothing of
     -- δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
-    Nothing -> Left c
+    Nothing -> Left $ c :| seen
     -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
     Just c' ->
       let seen' = c : seen
-       in if dejavu seen' c'
+       in case dejavu seen' c' of
             -- If we have been in a similar configuration,
             -- we are in an infinite loop.
-            then Right $ fst <$> seen'
+            Just (s', _) -> Right $ s' :| (fst <$> seen')
             -- Otherwise we step on this new configuration.
-            else stepE pda seen' c'
+            Nothing -> stepE pda seen' c'
 
 step :: (Eq s, Eq t) => SipserDPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
 step pda a (s, ts) =
   case stepE pda [] (s, ts) of
     -- We have reached an infinite loop of states `ss`.
-    Right ss -> Right ss
+    Right ss -> Right $ toList ss
     -- There are no more ε-transition available,
     -- so we know that δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
-    Left (s', ts') ->
+    Left ((s', ts') :| _) ->
       case stepStack pda s' ts' (Just a) of
         -- δ(s, ε, a) = ∅ and either the stack is empty, or δ(s, t, a) = ∅.
         -- This gives us two cases:
@@ -139,7 +142,9 @@ accepts pda as = go as (start pda, [])
     go [] c =
       case stepE pda [] c of
         -- When we have read all input, check if the current state is final.
-        Left (s', _) -> s' `Set.member` final pda
+        Left cs ->
+          let ss = fst <$> cs
+           in any (`Set.member` final pda) ss
         -- If we have read all input and is in an infinite cycle,
         -- we accept if any of the reachable states are final.
         Right ss -> any (`Set.member` final pda) ss
