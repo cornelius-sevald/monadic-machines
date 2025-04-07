@@ -79,7 +79,6 @@ fromSipserDPDA pda =
   FPDA
     { start = SDPDA.start pda,
       startSymbol = Nothing,
-      -- TODO: This needs to be all states reachable from an empty stack w. no input.
       final = _final,
       transInput = _transInput,
       transStack = _transStack

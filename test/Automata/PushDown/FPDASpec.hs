@@ -5,6 +5,7 @@ module Automata.PushDown.FPDASpec where
 
 import Automata.PushDown.FPDA (FPDA (..))
 import qualified Automata.PushDown.FPDA as FPDA
+import qualified Automata.PushDown.SipserDPDASpec as SDPDASpec
 import Data.Alphabet
 import qualified Data.Set as Set
 import Data.Word (Word8)
@@ -15,25 +16,41 @@ import Test.Util (kOkI, nonkOkI)
 spec :: Spec
 spec = do
   describe "Example FPDA" $ do
-    describe "An endlessly looping DPDA" $ do
-      let dpda = dpdaLoop
+    describe "An endlessly looping FPDA" $ do
+      let fpda = fpdaLoop
       it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` FPDA.accepts dpda
+        [] `shouldNotSatisfy` FPDA.accepts fpda
       prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` FPDA.accepts dpda
+        \n -> [n] `shouldSatisfy` FPDA.accepts fpda
       prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts dpda
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
-      let dpda = dpdaMirror
+      let fpda = fpdaMirror
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` FPDA.accepts dpda) <$> lang
+        (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` FPDA.accepts dpda) <$> langComp
+        (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
+  describe "fromSipserDPDA" $ do
+    context "With an endlessly looping Sipser DPDA" $ do
+      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaLoop
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` FPDA.accepts fpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` FPDA.accepts fpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
+    context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
+      let (lang, langComp) = (kOkI, nonkOkI)
+      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaMirror
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` FPDA.accepts fpda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
 
-{- Example DPDAs -}
+{- Example FPDAs -}
 
--- | A DPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
+-- | A FPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
 --
 -- The state 0 means the string should be rejected.
 -- State 1 is the starting and an accepting state,
@@ -47,8 +64,8 @@ spec = do
 --
 -- Once we have read all input, we inspect the stack.
 -- We accept only if we are in either state 1 or state 3 with an empty stack.
-dpdaMirror :: FPDA Int Bit Char
-dpdaMirror =
+fpdaMirror :: FPDA Int Bit Char
+fpdaMirror =
   FPDA
     { start = 1,
       final = [1],
@@ -69,7 +86,7 @@ dpdaMirror =
         (_, _) -> 0
     }
 
--- | A DPDA with a loop endlessly growing the stack.
+-- | A FPDA with a loop endlessly growing the stack.
 --
 -- It reads a single number, pushes it on the stack,
 -- and then goes in an infinite loop pushing
@@ -77,8 +94,8 @@ dpdaMirror =
 --
 -- This should continue until it overflows,
 -- and eventually the loop should be detected.
-dpdaLoop :: FPDA Int Word8 (Maybe Word8)
-dpdaLoop =
+fpdaLoop :: FPDA Int Word8 (Maybe Word8)
+fpdaLoop =
   FPDA
     { start = 1,
       final = Set.fromList [2],
