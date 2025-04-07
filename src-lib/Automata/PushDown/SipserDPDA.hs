@@ -36,7 +36,7 @@ data SipserDPDA s a t = SipserDPDA
     -- | The set of final states F.
     final :: Set s,
     -- | The transition function δ.
-    trans :: (s, Maybe t, Maybe a) -> Maybe (s, Maybe t)
+    trans :: (s, Maybe t, Maybe a) -> Maybe (s, [t])
   }
 
 -- | Perform a step in state `s` with (optional) input symbol `a`.
@@ -68,7 +68,7 @@ stepStack pda s ts a =
   where
     go (t, ts') = do
       (s', t') <- trans pda (s, t, a)
-      pure (s', maybeToList t' ++ ts')
+      pure (s', t' ++ ts')
 
 -- | Perform a step without consuming any input.
 -- Either this results in a new configuration (state/stack pair),

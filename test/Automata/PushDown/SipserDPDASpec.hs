@@ -40,16 +40,16 @@ dpdaMirror =
       final = [1, 4],
       trans =
         \case
-          (0, Nothing, Nothing) -> Just (0, Nothing)
-          (1, Nothing, Just O) -> Just (2, Just '$')
-          (1, Nothing, Just I) -> Just (0, Nothing)
-          (2, Nothing, Just O) -> Just (2, Just '+')
-          (2, Just '$', Just I) -> Just (4, Nothing)
-          (2, Just '+', Just I) -> Just (3, Nothing)
-          (3, Just '+', Just I) -> Just (3, Nothing)
-          (3, Just '$', Just I) -> Just (4, Nothing)
-          (3, Just _, Just O) -> Just (0, Nothing)
-          (4, Nothing, Nothing) -> Just (4, Nothing)
+          (0, Nothing, Nothing) -> Just (0, [])
+          (1, Nothing, Just O) -> Just (2, "$")
+          (1, Nothing, Just I) -> Just (0, [])
+          (2, Nothing, Just O) -> Just (2, "+")
+          (2, Just '$', Just I) -> Just (4, [])
+          (2, Just '+', Just I) -> Just (3, [])
+          (3, Just '+', Just I) -> Just (3, [])
+          (3, Just '$', Just I) -> Just (4, [])
+          (3, Just _, Just O) -> Just (0, [])
+          (4, Nothing, Nothing) -> Just (4, [])
           (_, _, _) -> Nothing
     }
 
@@ -67,8 +67,8 @@ dpdaLoop =
     { start = 1,
       final = Set.fromList [2],
       trans = \case
-        (1, Nothing, Just n) -> Just (2, Just n)
-        (2, Nothing, Nothing) -> Just (3, Nothing)
-        (3, Just n, Nothing) -> Just (3, Just (n + 1))
+        (1, Nothing, Just n) -> Just (2, [n])
+        (2, Nothing, Nothing) -> Just (3, [])
+        (3, Just n, Nothing) -> Just (3, [n + 1])
         (_, _, _) -> Nothing
     }
