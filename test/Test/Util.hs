@@ -5,8 +5,11 @@ import qualified Automata.FiniteState.AFA as AFA
 import qualified Automata.FiniteState.DFA as DFA
 import qualified Automata.FiniteState.Monadic as MFA
 import qualified Automata.FiniteState.NFA as NFA
+import Control.Monad (guard)
 import Data.Alphabet
-import Data.Maybe (maybeToList)
+import Data.Either (isLeft)
+import Data.List (uncons)
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set (Set)
 import Test.QuickCheck
 
@@ -57,15 +60,32 @@ containsAs, containsNoAs :: Gen [ABC]
 containsAs = mkLangGen (A `elem`)
 containsNoAs = filter (/= A) <$> arbitrary
 
+-- | {w·c·w^R | c ∉ w}
+mirrored, nonmirrored :: Gen [Either ABC ()]
+mirrored = do
+  w <- fmap (Left <$>) arbitrary
+  let c = Right ()
+  pure $ w <> [c] <> reverse w
+nonmirrored = mkLangGen (not . isMirrored)
+  where
+    isMirrored w = fromMaybe False $ do
+      let n = length w `div` 2
+          wl = take n w
+      (c, wr) <- uncons $ drop n w
+      guard $ all isLeft wl
+      guard $ c == Right ()
+      guard $ all isLeft wr
+      pure $ wl == reverse wr
+
 -- | {w | w is a palindrome} and its complement.
 palindromes, nonpalindromes :: Gen [ABC]
 palindromes = do
   w <- arbitrary :: Gen [ABC]
   middle <- arbitrary :: Gen (Maybe ABC)
   pure $ w <> maybeToList middle <> reverse w
-nonpalindromes = mkLangGen (not . palindrome)
+nonpalindromes = mkLangGen (not . isPalindrome)
   where
-    palindrome w = and $ zipWith (==) w (reverse w)
+    isPalindrome w = and $ zipWith (==) w (reverse w)
 
 {- Creating automata from arbitrary values. -}
 

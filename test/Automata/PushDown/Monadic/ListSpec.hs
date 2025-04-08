@@ -26,7 +26,7 @@ spec = do
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.accepts pda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = pdaMirror
+      let pda = pdakOkI
       prop "accepts strings in L" $ do
         (`shouldSatisfy` ListPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
@@ -39,8 +39,8 @@ spec = do
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.accepts pda) <$> langComp
 
-pdaMirror :: ListPDA Int Bit Char
-pdaMirror =
+pdakOkI :: ListPDA Int Bit Char
+pdakOkI =
   MonadicPDA
     { start = 1,
       final = Set.fromList [3],

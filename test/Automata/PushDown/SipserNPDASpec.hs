@@ -25,7 +25,7 @@ spec = do
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SNPDA.accepts npda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
-      let npda = npdaMirror
+      let npda = npdakOkI
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts npda) <$> lang
       prop "rejects strings not in L" $ do
@@ -39,8 +39,8 @@ spec = do
         (`shouldNotSatisfy` SNPDA.accepts npda) <$> langComp
 
 -- | PDA from figure 2.15 of [1]
-npdaMirror :: SipserNPDA Int Bit Char
-npdaMirror =
+npdakOkI :: SipserNPDA Int Bit Char
+npdakOkI =
   SipserNPDA
     { start = 1,
       final = [1, 4],

@@ -27,7 +27,7 @@ spec = do
         \n m w -> (n : m : w) `shouldNotSatisfy` IdentityPDA.accepts pda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = pdaMirror
+      let pda = pdakOkI
       prop "accepts strings in L" $ do
         (`shouldSatisfy` IdentityPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
@@ -44,8 +44,8 @@ spec = do
 -- stack to make sure we read the correct amount
 -- The state '3' is the final state, where we accept
 -- the string if there is no more input.
-pdaMirror :: IdentityPDA Int Bit Char
-pdaMirror =
+pdakOkI :: IdentityPDA Int Bit Char
+pdakOkI =
   MonadicPDA
     { start = 1,
       final = Set.fromList [3],

@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.Util (kOkI, nonkOkI)
+import Test.Util (kOkI, mirrored, nonkOkI, nonmirrored)
 
 spec :: Spec
 spec = do
@@ -25,7 +25,14 @@ spec = do
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
-      let dpda = dpdaMirror
+      let dpda = dpdakOkI
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` SDPDA.accepts dpda) <$> langComp
+    context "With L = {w·c·w^R | c ∉ w}" $ do
+      let (lang, langComp) = (mirrored, nonmirrored)
+      let dpda = dpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
@@ -33,8 +40,30 @@ spec = do
 
 {- Example DPDAs and associated languages -}
 
-dpdaMirror :: SipserDPDA Int Bit Char
-dpdaMirror =
+-- | A DPDA with a loop endlessly growing the stack.
+-- Used to test that we can handle infinite loops.
+--
+-- It reads a single number, pushes it on the stack,
+-- and then goes in an infinite loop pushing
+-- 'n+1' on the stack, where 'n' is the previous top of the stack.
+--
+-- This should continue until n=255,
+-- where it will overflow and the loop should be detected.
+dpdaLoop :: SipserDPDA Int Word8 Word8
+dpdaLoop =
+  SipserDPDA
+    { start = 1,
+      final = Set.fromList [2],
+      trans = \case
+        (1, Nothing, Just n) -> Just (2, [n])
+        (2, Nothing, Nothing) -> Just (3, [])
+        (3, Just n, Nothing) -> Just (3, [n + 1])
+        (_, _, _) -> Nothing
+    }
+
+-- | Sipser DPDA that recognizes the language {OᵏIᵏ | k ≥ 0}.
+dpdakOkI :: SipserDPDA Int Bit Char
+dpdakOkI =
   SipserDPDA
     { start = 1,
       final = [1, 4],
@@ -53,22 +82,25 @@ dpdaMirror =
           (_, _, _) -> Nothing
     }
 
--- | A DPDA with a loop endlessly growing the stack.
---
--- It reads a single number, pushes it on the stack,
--- and then goes in an infinite loop pushing
--- 'n+1' on the stack, where 'n' is the previous top of the stack.
---
--- This should continue until n=255,
--- where it will overflow and the loop should be detected.
-dpdaLoop :: SipserDPDA Int Word8 Word8
-dpdaLoop =
+-- | Sipser DPDA that recognizes the language {w·c·w^R | c ∉ w}
+-- of strings mirrored around a certain character (in this case Unit).
+dpdaMirrored :: SipserDPDA Int (Either ABC ()) (ABC, Bool)
+dpdaMirrored =
   SipserDPDA
     { start = 1,
-      final = Set.fromList [2],
-      trans = \case
-        (1, Nothing, Just n) -> Just (2, [n])
-        (2, Nothing, Nothing) -> Just (3, [])
-        (3, Just n, Nothing) -> Just (3, [n + 1])
-        (_, _, _) -> Nothing
+      final = [4],
+      trans =
+        \case
+          (0, Nothing, Nothing) -> Just (0, [])
+          (1, Nothing, Just (Left a)) -> Just (2, [(a, True)])
+          (1, Nothing, Just (Right ())) -> Just (4, [])
+          (2, Nothing, Just (Left a)) -> Just (2, [(a, False)])
+          (2, Nothing, Just (Right ())) -> Just (3, [])
+          (3, Just (a', b), Just (Left a))
+            | a == a' && b -> Just (4, [])
+            | a == a' && not b -> Just (3, [])
+            | otherwise -> Just (0, [])
+          (3, Nothing, Just (Right ())) -> Just (0, [])
+          (4, Nothing, Just _) -> Just (0, [])
+          (_, _, _) -> Nothing
     }
