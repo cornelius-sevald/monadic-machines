@@ -13,7 +13,6 @@ import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Universe.Class (Finite (universeF))
 
 -- | A Functional Pushdown Automaton (FPDA),
 -- is a 8-tuple (Q, Σ, Γ, δ, γ, Z_1, q_1, F) where,
@@ -31,10 +30,6 @@ import Data.Universe.Class (Finite (universeF))
 --
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a`, `t` respectively.
---
--- TODO: Maybe ensure that the amount read from the stack
--- in the transition function is statically guaranteed to be ≤ n,
--- perheaps via a refinement type.
 data FPDA s a t = FPDA
   { start :: s,
     final :: Set s,
@@ -79,6 +74,7 @@ accepts dpda as =
       let s'' = stepsStack dpda s' ts'
        in s'' `Set.member` final dpda
 
+-- | Convert a Sipser DPDA to a Functional PDA.
 fromSipserDPDA :: (Ord s, Eq t) => SipserDPDA s a t -> FPDA s a (Maybe t)
 fromSipserDPDA pda =
   FPDA
@@ -90,8 +86,8 @@ fromSipserDPDA pda =
     }
   where
     splitMaybe x = case x of Nothing -> [Nothing]; Just y -> [Nothing, Just y]
-    _final = SDPDA.final pda
     δ = SDPDA.trans pda
+    _final = SDPDA.final pda
     _transInput (s, t, a) =
       let input = (,) <$> splitMaybe t <*> splitMaybe (Just a)
           cs = (\(t', a') -> (s, t', a')) <$> input
@@ -169,7 +165,7 @@ fromSipserDPDA pda =
 -- The 'acceptsSipserDPDA' function does this automatically.
 --
 -- The stack alphabet is also extended with a dedicated bottom-of-stack symbol ('Nothing').
-toSipserDPDA :: (Ord s, Ord a, Finite a) => FPDA s a t -> SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t)
+toSipserDPDA :: (Ord s, Ord a) => FPDA s a t -> SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t)
 toSipserDPDA fpda =
   SipserDPDA
     { SDPDA.start = _start,

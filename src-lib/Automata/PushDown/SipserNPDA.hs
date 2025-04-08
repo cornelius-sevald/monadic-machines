@@ -4,7 +4,7 @@
 module Automata.PushDown.SipserNPDA where
 
 import Automata.PushDown.Util
-import Data.Maybe (isNothing, maybeToList)
+import Data.Maybe (isNothing)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -14,9 +14,14 @@ import qualified Data.Set as Set
 --    1. Q is a finite set called the *states*,
 --    2. Σ is a finite set called the *input alphabet*,
 --    2. Γ is a finite set called the *stack alphabet*,
---    3. δ : Q × Γ_ε × Σ_ε → P(Q × Γ_ε) is the transition function,
+--    3. δ : Q × Γ_ε × Σ_ε → P(Q × Γ^*) is the transition function,
 --    4. q_1 ∈ Q is the *start state*, and
 --    5. F ⊆ Q is the *set of final states*. [1]
+--
+-- In the book, the transition function may only push zero or
+-- one stack symbols, but allowing it to push an arbitrary
+-- amount doesn't change its power and makes conversions
+-- to other types of NPDAs much simpler.
 --
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a` and `t` respectively.
@@ -26,7 +31,7 @@ data SipserNPDA s a t = SipserNPDA
     -- | The set of final states F.
     final :: Set s,
     -- | The transition function δ.
-    trans :: (s, Maybe t, Maybe a) -> Set (s, Maybe t)
+    trans :: (s, Maybe t, Maybe a) -> Set (s, [t])
   }
 
 -- | Perform a step in state `s` with (optional) input symbol `a`.
@@ -42,7 +47,7 @@ stepStack pda s ts a =
   where
     go (t, ts') = Set.fromList $ do
       (s', t') <- Set.toList $ trans pda (s, t, a)
-      pure (s', maybeToList t' ++ ts')
+      pure (s', t' ++ ts')
 
 -- | Perform a step without consuming any input.
 stepE ::

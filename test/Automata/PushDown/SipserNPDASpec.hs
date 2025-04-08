@@ -38,44 +38,7 @@ spec = do
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.accepts npda) <$> langComp
 
--- | PDA from figure 2.15 of [1]
-npdakOkI :: SipserNPDA Int Bit Char
-npdakOkI =
-  SipserNPDA
-    { start = 1,
-      final = [1, 4],
-      trans = \case
-        (1, Nothing, Nothing) -> [(2, Just '$')]
-        (2, Nothing, Just O) -> [(2, Just '+')]
-        (2, Just '+', Just I) -> [(3, Nothing)]
-        (3, Just '+', Just I) -> [(3, Nothing)]
-        (3, Just '$', Nothing) -> [(4, Nothing)]
-        (_, _, _) -> []
-    }
-
--- | A PDA that recognizes palindromes.
-npdaPalindromes :: SipserNPDA Int ABC (Either ABC ())
-npdaPalindromes =
-  SipserNPDA
-    { start = 1,
-      final = [4],
-      trans = \case
-        (1, Nothing, Nothing) ->
-          [(2, Just (Right ()))]
-        (2, Just (Right ()), Nothing) ->
-          [(4, Nothing)]
-        (2, Nothing, Just x) ->
-          [ (2, Just (Left x)),
-            (3, Just (Left x)),
-            (3, Nothing)
-          ]
-        (3, Just (Left x), Just y)
-          | x == y -> [(3, Nothing)]
-          | otherwise -> []
-        (3, Just (Right ()), Nothing) ->
-          [(4, Nothing)]
-        (_, _, _) -> []
-    }
+{- Example Sipser PDAs -}
 
 -- | A NPDA with a loop endlessly growing the stack.
 --
@@ -91,9 +54,48 @@ npdaLoop =
     { start = 1,
       final = Set.fromList [2],
       trans = \case
-        (1, Nothing, Just n) -> [(2, Just n)]
-        (2, Nothing, Nothing) -> [(3, Nothing)]
-        (3, Just n, Nothing) -> [(3, Just (n + 1))]
+        (1, Nothing, Just n) -> [(2, [n])]
+        (2, Nothing, Nothing) -> [(3, [])]
+        (3, Just n, Nothing) -> [(3, [n + 1])]
+        (_, _, _) -> []
+    }
+
+-- | PDA from figure 2.15 of [1]
+npdakOkI :: SipserNPDA Int Bit Char
+npdakOkI =
+  SipserNPDA
+    { start = 1,
+      final = [1, 4],
+      trans = \case
+        (1, Nothing, Nothing) -> [(2, "$")]
+        (2, Nothing, Just O) -> [(2, "+")]
+        (2, Just '+', Just I) -> [(3, "")]
+        (3, Just '+', Just I) -> [(3, "")]
+        (3, Just '$', Nothing) -> [(4, "")]
+        (_, _, _) -> []
+    }
+
+-- | A PDA that recognizes palindromes.
+npdaPalindromes :: SipserNPDA Int ABC (Either ABC ())
+npdaPalindromes =
+  SipserNPDA
+    { start = 1,
+      final = [4],
+      trans = \case
+        (1, Nothing, Nothing) ->
+          [(2, [Right ()])]
+        (2, Just (Right ()), Nothing) ->
+          [(4, [])]
+        (2, Nothing, Just x) ->
+          [ (2, [Left x]),
+            (3, [Left x]),
+            (3, [])
+          ]
+        (3, Just (Left x), Just y)
+          | x == y -> [(3, [])]
+          | otherwise -> []
+        (3, Just (Right ()), Nothing) ->
+          [(4, [])]
         (_, _, _) -> []
     }
 

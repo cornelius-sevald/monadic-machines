@@ -14,7 +14,7 @@ import GHC.IsList
 --    1. Q is a finite set called the *states*,
 --    2. Σ is a finite set called the *input alphabet*,
 --    2. Γ is a finite set called the *stack alphabet*,
---    3. δ : Q × Γ_ε × Σ_ε → (Q × Γ_ε) ∪ {∅} is the transition function,
+--    3. δ : Q × Γ_ε × Σ_ε → (Q × Γ^*) ∪ {∅} is the transition function,
 --    4. q_1 ∈ Q is the *start state*, and
 --    5. F ⊆ Q is the *set of final states*.
 --
@@ -22,6 +22,11 @@ import GHC.IsList
 -- for every q ∈ Q, a ∈ Σ, and t ∈ Γ, exactly one of the values
 --     δ(q, a, t), δ(q, a, ε), δ(q, ε, t), and δ(q, ε, ε)
 -- is not ∅. [1]
+--
+-- In the book, the transition function may only push zero or
+-- one stack symbols, but allowing it to push an arbitrary
+-- amount doesn't change its power and makes conversions
+-- to other types of DPDAs much simpler.
 --
 -- Note that this definition only allows a paritally functional implementation,
 -- i.e. one in which each step has *at most* one result, rather than

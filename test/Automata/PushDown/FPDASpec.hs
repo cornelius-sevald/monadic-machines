@@ -15,7 +15,7 @@ import Test.Util
 
 spec :: Spec
 spec = do
-  describe "Example FPDA" $ do
+  describe "Example FPDAs" $ do
     describe "An endlessly looping FPDA" $ do
       let fpda = fpdaLoop
       it "rejects the empty string" $ do
