@@ -154,6 +154,18 @@ fromSipserDPDA pda =
 -- From these we use the 'transStack' function.
 -- Finally, we also have a dedicated start state which pushes the initial stack symbol
 -- (as Sipser DPDAs don't have those) and move to the appropriate state / input symbol pair start state.
+--
+-- The states have type @'Either' 'Bool' (s, 'Maybe' a)@ and should be interpreted as follows:
+--   - @'Left' 'False'@:         The start state.
+--   - @'Left' 'True@:           The dedicated final state.
+--   - @'Right' (s, 'Just' a)@:  In state @s@ with @a@ as the current input symbol.
+--   - @'Right' (s, 'Nothing')@: In state @s@ with no input left.
+--
+-- The input alphabet is extended with a dedicated end-of-input symbol ('Nothing'),
+-- which should be placed, and only placed, at the end of any input string.
+-- The 'acceptsSipserDPDA' function does this automatically.
+--
+-- The stack alphabet is also extended with a dedicated bottom-of-stack symbol ('Nothing').
 toSipserDPDA :: (Ord s, Ord a, Finite a) => FPDA s a t -> SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t)
 toSipserDPDA fpda =
   SipserDPDA
@@ -215,7 +227,10 @@ toSipserDPDA fpda =
       (Right (_, Nothing), _, _) -> Nothing
 
 -- | Wrapper acceptance function for Sipser DPDAs created via 'toSipserDPDA'.
--- Automatically ends an input word with a 'Nothing'.
+-- Automatically ends an input word with a dedicated end-of-input symbol: 'Nothing'.
+--
+-- The signature of this function is needlessly specific (e.g. the type of the state could just be @s@),
+-- but this is to prevent accidental misuse.
 acceptsSipserDPDA :: (Ord s, Ord a, Eq t) => SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t) -> [a] -> Bool
 acceptsSipserDPDA pda w = SDPDA.accepts pda (fmap Just w <> [Nothing])
 
