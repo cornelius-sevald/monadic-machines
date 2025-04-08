@@ -52,8 +52,11 @@ stepInput dpda (s, t :| ts, a :| as) =
    in (s', ts' <> ts, as')
 
 stepsInput :: (Eq s, Eq a, Eq t) => FPDA s a t -> [(s, [t])] -> (s, [t], [a]) -> Maybe (s, [t])
-stepsInput _ _ (s, [], _) = Just (s, [])
+-- No more input, return current state and stack.
 stepsInput _ _ (s, ts, []) = Just (s, ts)
+-- Popping from empty stack with remaining input, return error.
+stepsInput _ _ (_, [], _) = Nothing
+-- Reading input symbol 'a' and popping symbol 't' from stack.
 stepsInput dpda seen (s, t : ts, a : as) =
   case dejavu seen (s, t : ts) of
     Just _ -> Nothing

@@ -23,6 +23,14 @@ spec = do
         \n -> [n] `shouldSatisfy` SDPDA.accepts dpda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
+    describe "An DPDA popping from an empty stack" $ do
+      let dpda = dpdaPopEmpty
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` SDPDA.accepts dpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` SDPDA.accepts dpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let dpda = dpdakOkI
@@ -58,6 +66,23 @@ dpdaLoop =
         (1, Nothing, Just n) -> Just (2, [n])
         (2, Nothing, Nothing) -> Just (3, [])
         (3, Just n, Nothing) -> Just (3, [n + 1])
+        (_, _, _) -> Nothing
+    }
+
+-- | A DPDA that pops from an empty stack.
+--
+-- This should accept a word iff. it has length 1.
+--
+-- This is to check that popping from an empty stack
+-- is handled properly.
+dpdaPopEmpty :: SipserDPDA Int () ()
+dpdaPopEmpty =
+  SipserDPDA
+    { start = 1,
+      final = Set.fromList [2],
+      trans = \case
+        (1, Nothing, Just ()) -> Just (2, [])
+        (2, Just (), Just ()) -> Just (2, [])
         (_, _, _) -> Nothing
     }
 

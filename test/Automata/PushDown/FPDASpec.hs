@@ -24,6 +24,14 @@ spec = do
         \n -> [n] `shouldSatisfy` FPDA.accepts fpda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
+    describe "An FPDA popping from an empty stack" $ do
+      let fpda = fpdaPopEmpty
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` FPDA.accepts fpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` FPDA.accepts fpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let fpda = fpdakOkI
@@ -47,6 +55,14 @@ spec = do
         \n -> [n] `shouldSatisfy` FPDA.accepts fpda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
+    context "With an Sipser DPDA popping from an empty stack" $ do
+      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaPopEmpty
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` FPDA.accepts fpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` FPDA.accepts fpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdakOkI
@@ -64,6 +80,14 @@ spec = do
   describe "toSipserDPDA" $ do
     context "With an endlessly looping FDPDA" $ do
       let sdpda = FPDA.toSipserDPDA fpdaLoop
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` FPDA.acceptsSipserDPDA sdpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda
+    context "An FPDA popping from an empty stack" $ do
+      let sdpda = FPDA.toSipserDPDA fpdaPopEmpty
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` FPDA.acceptsSipserDPDA sdpda
       prop "accepts all strings of length 1" $
@@ -111,6 +135,28 @@ fpdaLoop =
       transStack = \case
         (_, Just _) -> 2
         (s, _) -> s
+    }
+
+-- | A FPDA that pops the starting symbol,
+-- and then tries to pop from the empty stack.
+--
+-- This should accept a word iff. it has length 1.
+--
+-- This is to check that popping from an empty stack
+-- is handled properly.
+fpdaPopEmpty :: FPDA Int () ()
+fpdaPopEmpty =
+  FPDA
+    { start = 1,
+      final = Set.fromList [1],
+      startSymbol = (),
+      transInput = \case
+        (1, (), ()) -> (1, [], True)
+        c -> error $ "invalid configuration " ++ show c,
+      -- If there is anything on the stack,
+      -- we move to state 0, i.e. we reject the input.
+      transStack = \case
+        (_, ()) -> 0
     }
 
 -- | A FPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
