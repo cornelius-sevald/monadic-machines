@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLists #-}
 
 -- | Functional Deterministic Pushdown Automata
 module Automata.PushDown.FPDA where
@@ -153,7 +154,7 @@ fromSipserDPDA pda =
 -- From these we use the 'transStack' function.
 -- Finally, we also have a dedicated start state which pushes the initial stack symbol
 -- (as Sipser DPDAs don't have those) and move to the appropriate state / input symbol pair start state.
-toSipserDPDA :: (Ord s, Ord a, Finite a) => FPDA s a t -> SipserDPDA (Maybe (s, Maybe a)) (Maybe a) t
+toSipserDPDA :: (Ord s, Ord a, Finite a) => FPDA s a t -> SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t)
 toSipserDPDA fpda =
   SipserDPDA
     { SDPDA.start = _start,
@@ -163,44 +164,59 @@ toSipserDPDA fpda =
   where
     δ = transInput fpda
     γ = transStack fpda
-    _start = Nothing
-    _final = Set.map Just $ Set.cartesianProduct (final fpda) (Set.fromList universeF)
+    _start = Left False
+    _final = [Left True]
     _trans = \case
       -- From the starting state, we put the start symbol on the stack,
       -- and move to the "real" start state.
-      (Nothing, Nothing, Just a) ->
-        let s = Just (start fpda, a)
-            t = startSymbol fpda
-         in Just (s, [t])
-      (Nothing, _, _) -> Nothing
+      (Left False, Nothing, Just a) ->
+        let s = Right (start fpda, a)
+            t = Just $ startSymbol fpda
+         in Just (s, [t, Nothing])
+      (Left False, _, _) -> Nothing
+      -- In the final state, there is nothing to do so we stay.
+      (Left True, Nothing, Nothing) ->
+        Just (Left True, [])
+      (Left True, _, _) -> Nothing
       -- This should be treated as being in state 's' and reading 'p'.
       -- If we do consume 'p', then this is undefined,
       -- as we have nothing further to read.
-      (Just (s, Just p), Just t, Nothing) ->
+      (Right (s, Just p), Just (Just t), Nothing) ->
         let (s', t', consume) = δ (s, t, p)
          in if consume
               then Nothing
-              else Just (Just (s', Just p), t')
+              else Just (Right (s', Just p), Just <$> t')
       -- This should be treated as being in state 's' and reading 'p',
       -- while getting a preview of 'a' (which might be the end-of-input marker).
       -- If we don't consume 'p', then this is undefined
       -- as we then don't want to immediately read 'a'.
-      (Just (s, Just p), Just t, Just a) ->
+      (Right (s, Just p), Just (Just t), Just a) ->
         let (s', t', consume) = δ (s, t, p)
          in if not consume
               then Nothing
-              else Just (Just (s', a), t')
-      (Just (_, Just _), _, _) -> Nothing
+              else Just (Right (s', a), Just <$> t')
+      -- Here we are trying to pop from a (morally) empty stack,
+      -- and so we are stuck.
+      (Right (s, Just p), Just Nothing, _) ->
+        Just (Right (s, Just p), [])
+      (Right (_, Just _), _, _) -> Nothing
       -- The '(s, Nothing)' indicates that we have read all input,
       -- and so we only move on the stack.
-      (Just (s, Nothing), Just t, Nothing) ->
+      (Right (s, Nothing), Just (Just t), Nothing) ->
         let s' = γ (s, t)
-         in Just (Just (s', Nothing), [])
-      (Just (_, Nothing), _, _) -> Nothing
+         in Just (Right (s', Nothing), [])
+      -- If we have read all input and the stack is empty,
+      -- we check if we are in a final state (of the FPDA).
+      -- If so, we move to the dedicated final state 'Left True' (of the SDPDA).
+      -- Otherwise, we want to reject the input, so we stay in this state.
+      (Right (s, Nothing), Just Nothing, Nothing)
+        | s `Set.member` final fpda -> Just (Left True, [])
+        | otherwise -> Just (Right (s, Nothing), [])
+      (Right (_, Nothing), _, _) -> Nothing
 
 -- | Wrapper acceptance function for Sipser DPDAs created via 'toSipserDPDA'.
 -- Automatically ends an input word with a 'Nothing'.
-acceptsSipserDPDA :: (Ord s, Ord a, Eq t) => SipserDPDA (Maybe (s, Maybe a)) (Maybe a) t -> [a] -> Bool
+acceptsSipserDPDA :: (Ord s, Ord a, Eq t) => SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t) -> [a] -> Bool
 acceptsSipserDPDA pda w = SDPDA.accepts pda (fmap Just w <> [Nothing])
 
 {- Bibliography
