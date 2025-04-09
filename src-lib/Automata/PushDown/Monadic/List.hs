@@ -25,6 +25,9 @@ acceptsDemonic m w = acceptance $ runMPDA m w
   where
     acceptance = and
 
+-- | Convert a Sipser NPDA to a List PDA.
+--
+-- Based on 'Automata.PushDown.FPDA.fromSipserDPDA'.
 fromSipserNPDA :: (Ord s, Ord t) => SipserNPDA s a t -> ListPDA s a (Maybe t)
 fromSipserNPDA pda =
   MonadicPDA
@@ -74,7 +77,17 @@ fromSipserNPDA pda =
             -- (as they have not read more from the stack than they have written).
             Nothing -> fst <$> filter (null . snd) cs
 
--- | TODO: Test that this works.
+-- | Convert a List PDA to a Sipser NPDA.
+--
+-- See 'Automata.PushDown.FPDA.toSipserDPDA'
+-- for a description on how it works.
+--
+-- Technically this does not need the end-of-input marker
+-- in the input stream, as it can always make a non-deterministic
+-- guess that it has reached the end-of-input.
+-- However, it makes it much more slows,
+-- and I introduced a bug when I tried to do that,
+-- so I'm leaving it like this for now.
 toSipserNPDA ::
   (Ord s, Ord a, Ord t) =>
   ListPDA s a t ->
