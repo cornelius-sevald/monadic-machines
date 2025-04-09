@@ -10,7 +10,7 @@ import Automata.PushDown.Util
 import Data.Foldable (find)
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -123,9 +123,8 @@ fromSipserDPDA pda =
                       ++ show (δ_str . snd <$> cs')
                       ++ " but may only be defined for one of these."
                in error msg
-    _transStack (s, Nothing) = s
-    _transStack (s, Just t) =
-      case SDPDA.stepE pda [] (s, [t]) of
+    _transStack (s, t) =
+      case SDPDA.stepE pda [] (s, maybeToList t) of
         Left cs ->
           let ss = fst <$> cs
            in fromMaybe (NE.head ss) $ find (`Set.member` _final) ss
