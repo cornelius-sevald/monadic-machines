@@ -6,7 +6,7 @@
 module Automata.PushDown.Monadic.List where
 
 import Automata.PushDown.Monadic
-import Automata.PushDown.SipserNPDA (SipserNPDA (SipserNPDA))
+import Automata.PushDown.SipserNPDA (EOISipserNPDA, SipserNPDA (SipserNPDA))
 import qualified Automata.PushDown.SipserNPDA as SNPDA
 import Automata.PushDown.Util
 import Data.Foldable (find)
@@ -78,7 +78,7 @@ fromSipserNPDA pda =
 toSipserNPDA ::
   (Ord s, Ord a, Ord t) =>
   ListPDA s a t ->
-  SipserNPDA (State (s, Ended a)) a (Bottomed t)
+  EOISipserNPDA (State (s, Ended a)) a (Bottomed t)
 toSipserNPDA m =
   SipserNPDA
     { SNPDA.start = _start,
@@ -93,11 +93,9 @@ toSipserNPDA m =
     _trans =
       Set.fromList . \case
         -- From the starting state, we put the start symbol on the stack,
-        -- and move to the "real" start state,
-        -- peeking at input symbol 'a' (which might be missing).
-        (Start, Nothing, a) ->
-          let a' = maybe End ISymbol a
-              s = Middle (start m, a')
+        -- and move to the "real" start state, peeking at input symbol 'p'.
+        (Start, Nothing, Just p) ->
+          let s = Middle (start m, p)
               t = SSymbol $ startSymbol m
            in pure (s, [t, Bottom])
         (Start, _, _) -> []
@@ -110,7 +108,7 @@ toSipserNPDA m =
         (Middle (s, ISymbol a), Just (SSymbol t), Nothing) -> do
           (s', t', consume) <- δ (s, t, a)
           if consume
-            then pure (Middle (s', End), SSymbol <$> t')
+            then []
             else pure (Middle (s', ISymbol a), SSymbol <$> t')
         -- This should be treated as being in state 's' and reading 'a',
         -- while peeking at the next input 'p' (which might be the end-of-input marker).
@@ -120,7 +118,7 @@ toSipserNPDA m =
           (s', t', consume) <- δ (s, t, a)
           if not consume
             then []
-            else pure (Middle (s', ISymbol p), SSymbol <$> t')
+            else pure (Middle (s', p), SSymbol <$> t')
         -- Here we are trying to pop from a (morally) empty stack,
         -- and so we are stuck.
         (Middle (s, ISymbol a), Just Bottom, _) -> pure (Middle (s, ISymbol a), [])
