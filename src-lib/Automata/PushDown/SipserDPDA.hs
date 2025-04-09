@@ -160,6 +160,16 @@ accepts pda as = go as (start pda, [])
         -- we reject the string. [1, p. 131]
         Right _ -> False
 
+-- A type of Sipser DPDA with a dedicated end-of-input symbol.
+type EOISipserDPDA s a t = SipserDPDA s (Ended a) t
+
+-- | Wrapper acceptance function for Sipser DPDAs with a dedicated end-of-input symbol,
+-- likely created via 'Automata.PushDown.FPA.toSipserDPDA'.
+--
+-- Automatically ends the input word with the dedicated end-of-input symbol.
+acceptsEOI :: (Ord s, Ord a, Eq t) => EOISipserDPDA s a t -> [a] -> Bool
+acceptsEOI pda w = accepts pda (fmap ISymbol w <> [End])
+
 {- Bibliography
  - ~~~~~~~~~~~~
  - [1]: M. Sipser, Introduction to the theory of computation, Third edition. Cengage Learning, 2013.

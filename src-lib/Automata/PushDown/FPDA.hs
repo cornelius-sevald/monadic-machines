@@ -4,7 +4,7 @@
 -- | Functional Deterministic Pushdown Automata
 module Automata.PushDown.FPDA where
 
-import Automata.PushDown.SipserDPDA (SipserDPDA (SipserDPDA))
+import Automata.PushDown.SipserDPDA (EOISipserDPDA, SipserDPDA (SipserDPDA))
 import qualified Automata.PushDown.SipserDPDA as SDPDA
 import Automata.PushDown.Util
 import Data.Foldable (find)
@@ -134,14 +134,14 @@ fromSipserDPDA pda =
 -- | Convert a Functional PDA to a Sipser Deterministic PDA.
 --
 -- This function is a total mess, but the most important thing as that
--- the input alphabet is extended with an end-of-input symbol ('Nothing'),
--- meaning that, if a FPDA accepts a language @L@,
--- then the corresponding Sipser DPDA will accept the language @['Just' w <> 'Nothing' | w <- L]@.
+-- the input alphabet is extended with an end-of-input symbol ('End'),
+-- meaning that, if a FPDA accepts a language @lang@,
+-- then the corresponding Sipser DPDA will accept the language @['ISymbol' w <> 'End' | w <- lang]@.
 --
 -- The trouble with converting FPDAs to Sipser DPDAs is that the Sipser DPDA wants to know
 -- whether a transition reads the input or is an ε-transition "up front", i.e. before even
 -- looking at the input symbol.
--- On the other hand, FPDAs will always read an input symbol, but the after the fact
+-- On the other hand, FPDAs will always read an input symbol, but then after the fact
 -- decide if you actually consume the input symbol or simply peek at it.
 --
 -- The way this conversion roughly works is by creating a state for each state / input symbol pair
@@ -149,23 +149,22 @@ fromSipserDPDA pda =
 -- it essentially lets us "peek" at the next input symbol, and so we can decide if we
 -- read the input or do an ε-transition "up front".
 -- Additionally, we also create a new state for each state of the FPDA which is
--- used when we are out of input (the @(s, Nothing)@ states).
+-- used when we are out of input (the @(s, 'End')@ states).
 -- From these we use the 'transStack' function.
--- Finally, we also have a dedicated start state which pushes the initial stack symbol
--- (as Sipser DPDAs don't have those) and move to the appropriate state / input symbol pair start state.
+-- Finally, we also have a dedicated start state 'Start' and final state 'Final'.
 --
--- The states have type @'Either' 'Bool' (s, 'Maybe' a)@ and should be interpreted as follows:
---   - @'Left' 'False'@:         The start state.
---   - @'Left' 'True@:           The dedicated final state.
---   - @'Right' (s, 'Just' a)@:  In state @s@ with @a@ as the current input symbol.
---   - @'Right' (s, 'Nothing')@: In state @s@ with no input left.
+-- The states have type @'State' (s, 'Ended' a)@ and should be interpreted as follows:
+--   - @'Start'@:                   The start state.
+--   - @'Final'@:                   The dedicated final state.
+--   - @'Middle' (s, 'ISymbol' a)@: In state @s@ with @a@ as the current input symbol.
+--   - @'Right' (s, 'End')@:        In state @s@ with no input left.
 --
--- The input alphabet is extended with a dedicated end-of-input symbol ('Nothing'),
+-- The input alphabet is extended with a dedicated end-of-input symbol ('End'),
 -- which should be placed, and only placed, at the end of any input string.
--- The 'acceptsSipserDPDA' function does this automatically.
+-- The 'Automata.PushDown.SipserDPDA.acceptsEOI' function does this automatically.
 --
--- The stack alphabet is also extended with a dedicated bottom-of-stack symbol ('Nothing').
-toSipserDPDA :: (Ord s, Ord a) => FPDA s a t -> SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t)
+-- The stack alphabet is also extended with a dedicated bottom-of-stack symbol ('Bottom').
+toSipserDPDA :: (Ord s, Ord a) => FPDA s a t -> EOISipserDPDA (State (s, Ended a)) a (Bottomed t)
 toSipserDPDA fpda =
   SipserDPDA
     { SDPDA.start = _start,
@@ -175,63 +174,55 @@ toSipserDPDA fpda =
   where
     δ = transInput fpda
     γ = transStack fpda
-    _start = Left False
-    _final = [Left True]
+    _start = Start
+    _final = [Final]
     _trans = \case
       -- From the starting state, we put the start symbol on the stack,
-      -- and move to the "real" start state.
-      (Left False, Nothing, Just a) ->
-        let s = Right (start fpda, a)
-            t = Just $ startSymbol fpda
-         in Just (s, [t, Nothing])
-      (Left False, _, _) -> Nothing
+      -- and move to the "real" start state, peeking at input symbol 'p'.
+      (Start, Nothing, Just p) ->
+        let s = Middle (start fpda, p)
+            t = SSymbol $ startSymbol fpda
+         in Just (s, [t, Bottom])
+      (Start, _, _) -> Nothing
       -- In the final state, there is nothing to do so we stay.
-      (Left True, Nothing, Nothing) ->
-        Just (Left True, [])
-      (Left True, _, _) -> Nothing
-      -- This should be treated as being in state 's' and reading 'p'.
-      -- If we do consume 'p', then this is undefined,
+      (Final, Nothing, Nothing) ->
+        Just (Final, [])
+      (Final, _, _) -> Nothing
+      -- This should be treated as being in state 's' and reading 'a'.
+      -- If we consume 'a', then this is undefined,
       -- as we have nothing further to read.
-      (Right (s, Just p), Just (Just t), Nothing) ->
-        let (s', t', consume) = δ (s, t, p)
+      (Middle (s, ISymbol a), Just (SSymbol t), Nothing) ->
+        let (s', t', consume) = δ (s, t, a)
          in if consume
               then Nothing
-              else Just (Right (s', Just p), Just <$> t')
-      -- This should be treated as being in state 's' and reading 'p',
-      -- while getting a preview of 'a' (which might be the end-of-input marker).
-      -- If we don't consume 'p', then this is undefined
-      -- as we then don't want to immediately read 'a'.
-      (Right (s, Just p), Just (Just t), Just a) ->
-        let (s', t', consume) = δ (s, t, p)
+              else Just (Middle (s', ISymbol a), SSymbol <$> t')
+      -- This should be treated as being in state 's' and reading 'a',
+      -- while peeking at the next input 'p' (which might be the end-of-input marker).
+      -- If we don't consume 'a', then this is undefined
+      -- as we then don't want to immediately read 'p'.
+      (Middle (s, ISymbol a), Just (SSymbol t), Just p) ->
+        let (s', t', consume) = δ (s, t, a)
          in if not consume
               then Nothing
-              else Just (Right (s', a), Just <$> t')
+              else Just (Middle (s', p), SSymbol <$> t')
       -- Here we are trying to pop from a (morally) empty stack,
       -- and so we are stuck.
-      (Right (s, Just p), Just Nothing, _) ->
-        Just (Right (s, Just p), [])
-      (Right (_, Just _), _, _) -> Nothing
-      -- The '(s, Nothing)' indicates that we have read all input,
-      -- and so we only move on the stack.
-      (Right (s, Nothing), Just (Just t), Nothing) ->
+      (Middle (s, ISymbol a), Just Bottom, _) ->
+        Just (Middle (s, ISymbol a), [])
+      (Middle (_, ISymbol _), _, _) -> Nothing
+      -- The '(s, End)' indicates that we have read all input,
+      -- and so we only move on the stack symbols.
+      (Middle (s, End), Just (SSymbol t), Nothing) ->
         let s' = γ (s, t)
-         in Just (Right (s', Nothing), [])
+         in Just (Middle (s', End), [])
       -- If we have read all input and the stack is empty,
       -- we check if we are in a final state (of the FPDA).
-      -- If so, we move to the dedicated final state 'Left True' (of the SDPDA).
+      -- If so, we move to the dedicated final state 'Final' (of the SDPDA).
       -- Otherwise, we want to reject the input, so we stay in this state.
-      (Right (s, Nothing), Just Nothing, Nothing)
-        | s `Set.member` final fpda -> Just (Left True, [])
-        | otherwise -> Just (Right (s, Nothing), [])
-      (Right (_, Nothing), _, _) -> Nothing
-
--- | Wrapper acceptance function for Sipser DPDAs created via 'toSipserDPDA'.
--- Automatically ends an input word with a dedicated end-of-input symbol: 'Nothing'.
---
--- The signature of this function is needlessly specific (e.g. the type of the state could just be @s@),
--- but this is to prevent accidental misuse.
-acceptsSipserDPDA :: (Ord s, Ord a, Eq t) => SipserDPDA (Either Bool (s, Maybe a)) (Maybe a) (Maybe t) -> [a] -> Bool
-acceptsSipserDPDA pda w = SDPDA.accepts pda (fmap Just w <> [Nothing])
+      (Middle (s, End), Just Bottom, Nothing)
+        | s `Set.member` final fpda -> Just (Final, [])
+        | otherwise -> Just (Middle (s, End), [])
+      (Middle (_, End), _, _) -> Nothing
 
 {- Bibliography
  - ~~~~~~~~~~~~

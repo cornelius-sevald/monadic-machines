@@ -1,4 +1,4 @@
-module Automata.PushDown.Util (dejavu, split1, split01) where
+module Automata.PushDown.Util where
 
 import Data.Foldable (find)
 import Data.Maybe (listToMaybe)
@@ -34,3 +34,23 @@ split1 (x : xs) = (Just x, xs)
 split01 :: [x] -> [(Maybe x, [x])]
 split01 [] = [(Nothing, [])]
 split01 (x : xs) = [(Nothing, x : xs), (Just x, xs)]
+
+{- These types are used for conversion of FPDAs to Sipser DPDAs. -}
+
+-- An input symbol, or an end-of-input marker.
+data Ended a
+  = ISymbol a
+  | End
+  deriving (Show, Eq, Ord)
+
+-- A stack symbol, or a bottom-of-stack marker
+data Bottomed a
+  = SSymbol a
+  | Bottom
+  deriving (Show, Eq, Ord)
+
+data State s
+  = Start
+  | Middle s
+  | Final
+  deriving (Show, Eq, Ord)
