@@ -1,3 +1,6 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
+
 -- | Testing utilities.
 module Test.Util where
 
@@ -5,13 +8,18 @@ import qualified Automata.FiniteState.AFA as AFA
 import qualified Automata.FiniteState.DFA as DFA
 import qualified Automata.FiniteState.Monadic as MFA
 import qualified Automata.FiniteState.NFA as NFA
+import qualified Automata.PushDown.FPDA as FPDA
+import qualified Automata.PushDown.Monadic as MPDA
+import qualified Automata.PushDown.SipserDPDA as SDPDA
+import qualified Automata.PushDown.SipserNPDA as SNPDA
 import Control.Monad (guard)
 import Data.Alphabet
 import Data.Either (isLeft)
 import Data.List (uncons)
 import Data.Maybe (fromMaybe, maybeToList)
+import Data.NAry
 import Data.Set (Set)
-import Test.QuickCheck
+import Test.QuickCheck hiding (shrink)
 
 {- Utility functions -}
 
@@ -128,3 +136,78 @@ mkMFA (start, final, trans') =
     }
   where
     trans = applyFun trans'
+
+-- Here we can't just generate any transition function,
+-- as we need to ensure the condition that exactly one of
+-- δ(s, ε, ε), δ(s, ε, t), δ(s, a, ε), δ(s, a, t) is defined.
+-- To do this, we generate an additional selection function,
+-- which maps each state to a number between 1 and 4,
+-- indicating which of the four options for δ is to be defined.
+mkSipserDPDA ::
+  (s, Set s, Fun s (NAry 4), Fun (s, Maybe t, Maybe a) (s, [t])) ->
+  SDPDA.SipserDPDA s a t
+mkSipserDPDA (start, final, select', trans') =
+  SDPDA.SipserDPDA
+    { SDPDA.start = start,
+      SDPDA.final = final,
+      SDPDA.trans = trans
+    }
+  where
+    select = applyFun select'
+    δ = applyFun trans'
+    trans c@(s, _, _) = case (select s, c) of
+      (Ith 1, (_, Nothing, Nothing)) -> Just $ δ c
+      (Ith 2, (_, Nothing, Just _)) -> Just $ δ c
+      (Ith 3, (_, Just _, Nothing)) -> Just $ δ c
+      (Ith 4, (_, Just _, Just _)) -> Just $ δ c
+      _ -> Nothing
+
+mkSipserNPDA ::
+  (s, Set s, Fun (s, Maybe t, Maybe a) (Set (s, [t]))) ->
+  SNPDA.SipserNPDA s a t
+mkSipserNPDA (start, final, trans') =
+  SNPDA.SipserNPDA
+    { SNPDA.start = start,
+      SNPDA.final = final,
+      SNPDA.trans = trans
+    }
+  where
+    trans = applyFun trans'
+
+mkFPDA ::
+  (s, Set s, t, Fun (s, t, a) (s, [t], Bool), Fun (s, t) s) ->
+  FPDA.FPDA s a t
+mkFPDA (start, final, startSymbol, δ', γ') =
+  FPDA.FPDA
+    { FPDA.start = start,
+      FPDA.startSymbol = startSymbol,
+      FPDA.final = final,
+      FPDA.transInput = δ,
+      FPDA.transStack = γ
+    }
+  where
+    δ = applyFun δ'
+    γ = applyFun γ'
+
+-- | Make a monadic PDA.
+--
+-- The shrink function is intended to make sure
+-- the monadic output of the transition function(s) is not needlessly large,
+-- e.g. for the List monad it could be 'nubOrd'.
+-- If no shrinking is needed, just pass 'id'.
+mkMPDA ::
+  (Monad m, Ord s, Ord t) =>
+  (forall x. (Ord x) => m x -> m x) ->
+  (s, Set s, t, Fun (s, t, a) (m (s, [t], Bool)), Fun (s, t) (m s)) ->
+  MPDA.MonadicPDA m s a t
+mkMPDA shrink (start, final, startSymbol, δ', γ') =
+  MPDA.MonadicPDA
+    { MPDA.start = start,
+      MPDA.startSymbol = startSymbol,
+      MPDA.final = final,
+      MPDA.transInput = δ,
+      MPDA.transStack = γ
+    }
+  where
+    δ = shrink . applyFun δ'
+    γ = shrink . applyFun γ'

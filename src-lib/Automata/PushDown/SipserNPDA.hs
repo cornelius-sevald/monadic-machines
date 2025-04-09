@@ -74,7 +74,7 @@ stepE pda seen c@(s, ts) =
         -- then we return the seen configurations.
         then seen'
         -- Otherwise we recursively step from the new configurations.
-        else Set.unions $ Set.map (stepE pda seen') new
+        else Set.foldl (stepE pda) seen' new
 
 -- | Perform a step on a single input symbol.
 step :: (Ord s, Ord t) => SipserNPDA s a t -> a -> (s, [t]) -> Set (s, [t])

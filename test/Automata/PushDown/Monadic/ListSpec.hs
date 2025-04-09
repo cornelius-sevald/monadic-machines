@@ -1,19 +1,34 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 
 module Automata.PushDown.Monadic.ListSpec where
 
-import Automata.PushDown.Monadic (MonadicPDA (..))
+import qualified Automata.PushDown.Monadic as MPDA
 import Automata.PushDown.Monadic.List (ListPDA)
 import qualified Automata.PushDown.Monadic.List as ListPDA
 import qualified Automata.PushDown.SipserNPDA as SNPDA
 import qualified Automata.PushDown.SipserNPDASpec as SNPDASpec
 import Data.Alphabet
+import Data.Containers.ListUtils (nubOrd)
+import Data.NAry (NAry)
 import qualified Data.Set as Set
 import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
+
+-- | The number of states used in random PDAs.
+type N = 3
+
+-- | The type of states used in random PDAs.
+type S = NAry N
+
+-- | The input alphabet used in random PDAs.
+type A = Bit
+
+-- | The stack alphabet used in random PDAs.
+type T = Bit
 
 spec :: Spec
 spec = do
@@ -63,6 +78,15 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+    context "For a random Sipser NPDA" $
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for ages.
+      modifyMaxSize (`div` 35) $ do
+        prop "recognizes the same language" $ do
+          \sdpda' w ->
+            let snpda = mkSipserNPDA sdpda' :: SNPDA.SipserNPDA S A T
+                m = ListPDA.fromSipserNPDA snpda
+             in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
   describe "toSipserNPDA" $ do
     context "With an endlessly looping List PDA" $ do
       let snpda = ListPDA.toSipserNPDA pdaLoop
@@ -86,6 +110,15 @@ spec = do
         (`shouldSatisfy` SNPDA.acceptsEOI snpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.acceptsEOI snpda) <$> langComp
+    context "For a random List PDA" $
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for (maybe literally) ages.
+      modifyMaxSize (`div` 25) $ do
+        prop "recognizes the same language" $ do
+          \m' w ->
+            let m = mkMPDA nubOrd m' :: ListPDA.ListPDA S A T
+                sdpda = ListPDA.toSipserNPDA m
+             in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.acceptsEOI sdpda w
 
 {- Example List PDAs -}
 
@@ -99,35 +132,35 @@ spec = do
 -- where it will overflow and the loop should be detected.
 pdaLoop :: ListPDA Int Word8 (Maybe Word8)
 pdaLoop =
-  MonadicPDA
-    { start = 1,
-      final = Set.fromList [2],
-      startSymbol = Nothing,
-      transInput = \case
+  MPDA.MonadicPDA
+    { MPDA.start = 1,
+      MPDA.final = Set.fromList [2],
+      MPDA.startSymbol = Nothing,
+      MPDA.transInput = \case
         (1, Nothing, n) -> [(2, [Just n], True)]
         (2, Just n, _) -> [(3, [Just n], False)]
         (3, Just n, _) -> [(3, [Just $ n + 1], False)]
         c -> error $ "invalid configuration " ++ show c,
       -- If there is anything on the stack,
       -- we move to the acceping state.
-      transStack = \case
+      MPDA.transStack = \case
         (_, Just _) -> [2]
         (s, _) -> [s]
     }
 
 pdakOkI :: ListPDA Int Bit Char
 pdakOkI =
-  MonadicPDA
-    { start = 1,
-      final = Set.fromList [3],
-      startSymbol = '$',
-      transInput = \case
+  MPDA.MonadicPDA
+    { MPDA.start = 1,
+      MPDA.final = Set.fromList [3],
+      MPDA.startSymbol = '$',
+      MPDA.transInput = \case
         (1, '$', O) -> [(1, "+$", True)]
         (1, '+', O) -> [(1, "++", True)]
         (1, '+', I) -> [(2, "", True)]
         (2, '+', I) -> [(2, "", True)]
         _ -> [],
-      transStack = \case
+      MPDA.transStack = \case
         (1, '$') -> [3]
         (2, '$') -> [3]
         _ -> [0]
@@ -136,11 +169,11 @@ pdakOkI =
 -- | A PDA that recognizes palindromes.
 pdaPalindromes :: ListPDA Int ABC (Either ABC ())
 pdaPalindromes =
-  MonadicPDA
-    { start = 1,
-      final = [3],
-      startSymbol = Right (),
-      transInput = \case
+  MPDA.MonadicPDA
+    { MPDA.start = 1,
+      MPDA.final = [3],
+      MPDA.startSymbol = Right (),
+      MPDA.transInput = \case
         (1, t, x) ->
           [ (1, [Left x, t], True),
             (2, [Left x, t], True),
@@ -150,7 +183,7 @@ pdaPalindromes =
           | x == y -> [(2, [], True)]
           | otherwise -> []
         (_, _, _) -> [],
-      transStack = \case
+      MPDA.transStack = \case
         (1, Right ()) -> [3]
         (2, Right ()) -> [3]
         _ -> [0]

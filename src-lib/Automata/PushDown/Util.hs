@@ -1,7 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Automata.PushDown.Util where
 
+import Data.Bool (bool)
 import Data.Foldable (find)
 import Data.Maybe (listToMaybe)
+import GHC.Generics (Generic)
+import Test.QuickCheck
 
 -- | Check if we have been in a similar configuration before.
 -- Specifically, check if we have been in a configuration
@@ -41,16 +46,28 @@ split01 (x : xs) = [(Nothing, x : xs), (Just x, xs)]
 data Ended a
   = ISymbol a
   | End
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
+
+instance (Arbitrary a) => Arbitrary (Ended a) where
+  arbitrary = maybe End ISymbol <$> arbitrary
+  shrink = genericShrink
 
 -- A stack symbol, or a bottom-of-stack marker
 data Bottomed a
   = SSymbol a
   | Bottom
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
+
+instance (Arbitrary a) => Arbitrary (Bottomed a) where
+  arbitrary = maybe Bottom SSymbol <$> arbitrary
+  shrink = genericShrink
 
 data State s
   = Start
   | Middle s
   | Final
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
+
+instance (Arbitrary s) => Arbitrary (State s) where
+  arbitrary = either (bool Start Final) Middle <$> arbitrary
+  shrink = genericShrink
