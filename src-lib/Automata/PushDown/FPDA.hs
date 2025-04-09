@@ -75,6 +75,31 @@ accepts dpda as =
        in s'' `Set.member` final dpda
 
 -- | Convert a Sipser DPDA to a Functional PDA.
+--
+-- BUG:
+--   1) Automata, Pushdown Automata, Functional Deterministic PDAs, fromSipserDPDA, For a random Sipser DPDA,
+--  recognizes the same language
+--        Falsifiable (after 76 tests and 45 shrinks):
+--          ( Ith# 1
+--          , fromList [Ith# 1]
+--          , { Ith# 2->Ith# 2
+--            , Ith# 4->Ith# 3
+--            , Ith# 8->Ith# 2
+--            , _->Ith# 1
+--            }
+--          , { (Ith# 2,Nothing,Just A)->(Ith# 8,[])
+--            , (Ith# 4,Just B,Nothing)->(Ith# 4,[B])
+--            , (Ith# 4,Just C,Nothing)->(Ith# 1,[])
+--            , (Ith# 8,Nothing,Just A)->(Ith# 4,[])
+--            , _->(Ith# 2,[B,C])
+--            }
+--          )
+--          [A,A]
+--        expected: False
+--         but got: True
+--  To rerun use: --match "/Automata/Pushdown Automata/Functional Deterministic PDAs/fromSipserDPDA/For a random Sipser DPDA/recognizes the same language/" --seed 1228129009
+--
+-- TODO: Investigate & fix.
 fromSipserDPDA :: (Ord s, Eq t) => SipserDPDA s a t -> FPDA s a (Maybe t)
 fromSipserDPDA pda =
   FPDA
