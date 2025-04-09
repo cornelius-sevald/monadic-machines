@@ -55,6 +55,15 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+    context "With L = {w | w is not a palindrome}" $ do
+      let (lang, langComp) = (nonpalindromes, palindromes)
+      -- Here we flip all final states,
+      -- and use demonic non-determinism.
+      let pda = pdaPalindromes {MPDA.final = [0, 1, 2]}
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
   describe "fromSipserNPDA" $ do
     context "With an endlessly looping Sipser NPDA" $ do
       let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaLoop
