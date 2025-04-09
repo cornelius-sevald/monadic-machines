@@ -6,8 +6,9 @@
 module Automata.PushDown.Monadic.List where
 
 import Automata.PushDown.Monadic
-import Automata.PushDown.SipserNPDA (SipserNPDA (SipserNPDA))
+import Automata.PushDown.SipserNPDA (EOISipserNPDA, SipserNPDA (SipserNPDA))
 import qualified Automata.PushDown.SipserNPDA as SNPDA
+import Automata.PushDown.Util
 import Data.Foldable (find)
 import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
@@ -24,7 +25,6 @@ acceptsDemonic m w = acceptance $ runMPDA m w
   where
     acceptance = and
 
--- | TODO: Fix this
 fromSipserNPDA :: (Ord s, Ord t) => SipserNPDA s a t -> ListPDA s a (Maybe t)
 fromSipserNPDA pda =
   MonadicPDA
@@ -74,6 +74,65 @@ fromSipserNPDA pda =
             -- (as they have not read more from the stack than they have written).
             Nothing -> fst <$> filter (null . snd) cs
 
--- | TODO: Implement & test that this works.
-toSipserNPDA :: ListPDA s a t -> SipserNPDA s a t
-toSipserNPDA m = error "TODO: implement"
+-- | TODO: Test that this works.
+toSipserNPDA ::
+  (Ord s, Ord a, Ord t) =>
+  ListPDA s a t ->
+  EOISipserNPDA (State (s, Ended a)) a (Bottomed t)
+toSipserNPDA m =
+  SipserNPDA
+    { SNPDA.start = _start,
+      SNPDA.final = _final,
+      SNPDA.trans = _trans
+    }
+  where
+    δ = transInput m
+    γ = transStack m
+    _start = Start
+    _final = [Final]
+    _trans =
+      Set.fromList . \case
+        -- From the starting state, we put the start symbol on the stack,
+        -- and move to the "real" start state, peeking at input symbol 'p'.
+        (Start, Nothing, Just p) ->
+          let s = Middle (start m, p)
+              t = SSymbol $ startSymbol m
+           in pure (s, [t, Bottom])
+        (Start, _, _) -> []
+        -- In the final state, there is nothing to do so we stay.
+        (Final, Nothing, Nothing) -> pure (Final, [])
+        (Final, _, _) -> []
+        -- This should be treated as being in state 's' and reading 'a'.
+        -- If we consume 'a', then this is undefined,
+        -- as we have nothing further to read.
+        (Middle (s, ISymbol a), Just (SSymbol t), Nothing) -> do
+          (s', t', consume) <- δ (s, t, a)
+          if consume
+            then []
+            else pure (Middle (s', ISymbol a), SSymbol <$> t')
+        -- This should be treated as being in state 's' and reading 'a',
+        -- while peeking at the next input 'p' (which might be the end-of-input marker).
+        -- If we don't consume 'a', then this is undefined
+        -- as we then don't want to immediately read 'p'.
+        (Middle (s, ISymbol a), Just (SSymbol t), Just p) -> do
+          (s', t', consume) <- δ (s, t, a)
+          if not consume
+            then []
+            else pure (Middle (s', p), SSymbol <$> t')
+        -- Here we are trying to pop from a (morally) empty stack,
+        -- and so we are stuck.
+        (Middle (s, ISymbol a), Just Bottom, _) -> pure (Middle (s, ISymbol a), [])
+        (Middle (_, ISymbol _), _, _) -> []
+        -- The '(s, End)' indicates that we have read all input,
+        -- and so we only move on the stack symbols.
+        (Middle (s, End), Just (SSymbol t), Nothing) -> do
+          s' <- γ (s, t)
+          pure (Middle (s', End), [])
+        -- If we have read all input and the stack is empty,
+        -- we check if we are in a final state (of the List PDA).
+        -- If so, we move to the dedicated final state 'Final' (of the SNPDA).
+        -- Otherwise, we want to reject the input, so we stay in this state.
+        (Middle (s, End), Just Bottom, Nothing)
+          | s `Set.member` final m -> pure (Final, [])
+          | otherwise -> pure (Middle (s, End), [])
+        (Middle (_, End), _, _) -> []

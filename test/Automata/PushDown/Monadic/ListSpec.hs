@@ -6,6 +6,7 @@ module Automata.PushDown.Monadic.ListSpec where
 import Automata.PushDown.Monadic (MonadicPDA (..))
 import Automata.PushDown.Monadic.List (ListPDA)
 import qualified Automata.PushDown.Monadic.List as ListPDA
+import qualified Automata.PushDown.SipserNPDA as SNPDA
 import qualified Automata.PushDown.SipserNPDASpec as SNPDASpec
 import Data.Alphabet
 import qualified Data.Set as Set
@@ -17,7 +18,7 @@ import Test.Util
 spec :: Spec
 spec = do
   describe "Example List PDAs" $ do
-    describe "An endlessly looping PDA" $ do
+    describe "An endlessly looping List PDA" $ do
       let pda = pdaLoop
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
@@ -62,6 +63,29 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+  describe "toSipserNPDA" $ do
+    context "With an endlessly looping List PDA" $ do
+      let snpda = ListPDA.toSipserNPDA pdaLoop
+      it "rejects the empty string" $ do
+        [] `shouldNotSatisfy` SNPDA.acceptsEOI snpda
+      prop "accepts all strings of length 1" $
+        \n -> [n] `shouldSatisfy` SNPDA.acceptsEOI snpda
+      prop "rejects all strings of length >1" $
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SNPDA.acceptsEOI snpda
+    context "For a List PDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
+      let (lang, langComp) = (kOkI, nonkOkI)
+      let snpda = ListPDA.toSipserNPDA pdakOkI
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` SNPDA.acceptsEOI snpda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` SNPDA.acceptsEOI snpda) <$> langComp
+    context "For a List PDA recognizing L = {w | w is a palindrome}" $ do
+      let (lang, langComp) = (palindromes, nonpalindromes)
+      let snpda = ListPDA.toSipserNPDA pdaPalindromes
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` SNPDA.acceptsEOI snpda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` SNPDA.acceptsEOI snpda) <$> langComp
 
 {- Example List PDAs -}
 

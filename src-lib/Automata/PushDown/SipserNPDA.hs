@@ -97,6 +97,16 @@ accepts pda as = go as (start pda, [])
       let cs' = step pda a c
        in any (go as') cs'
 
+-- A type of Sipser NPDA with a dedicated end-of-input symbol.
+type EOISipserNPDA s a t = SipserNPDA s (Ended a) t
+
+-- | Wrapper acceptance function for Sipser NPDAs with a dedicated end-of-input symbol,
+-- likely created via 'Automata.PushDown.Monadic.List.toSipserNPDA.
+--
+-- Automatically ends the input word with the dedicated end-of-input symbol.
+acceptsEOI :: (Ord s, Ord t) => EOISipserNPDA s a t -> [a] -> Bool
+acceptsEOI pda w = accepts pda (fmap ISymbol w <> [End])
+
 {- Bibliography
  - ~~~~~~~~~~~~
  - [1]: M. Sipser, Introduction to the theory of computation, Third edition. Cengage Learning, 2013.

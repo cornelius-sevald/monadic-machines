@@ -164,10 +164,10 @@ accepts pda as = go as (start pda, [])
 type EOISipserDPDA s a t = SipserDPDA s (Ended a) t
 
 -- | Wrapper acceptance function for Sipser DPDAs with a dedicated end-of-input symbol,
--- likely created via 'Automata.PushDown.FPA.toSipserDPDA'.
+-- likely created via 'Automata.PushDown.FPDA.toSipserDPDA'.
 --
 -- Automatically ends the input word with the dedicated end-of-input symbol.
-acceptsEOI :: (Ord s, Ord a, Eq t) => EOISipserDPDA s a t -> [a] -> Bool
+acceptsEOI :: (Ord s, Eq t) => EOISipserDPDA s a t -> [a] -> Bool
 acceptsEOI pda w = accepts pda (fmap ISymbol w <> [End])
 
 {- Bibliography
