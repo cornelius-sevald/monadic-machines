@@ -3,7 +3,7 @@ module Automata.PushDown.SipserDPDA where
 
 import Automata.PushDown.Util
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Maybe (mapMaybe, maybeToList)
+import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.IsList
