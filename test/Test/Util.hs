@@ -175,19 +175,22 @@ mkSipserNPDA (start, final, trans') =
     trans = applyFun trans'
 
 mkFPDA ::
-  (s, Set s, t, Fun (s, t, a) (s, [t], Bool), Fun (s, t) s) ->
-  FPDA.FPDA s a t
-mkFPDA (start, final, startSymbol, δ', γ') =
+  ( Either r p,
+    Set (Either r p),
+    Fun (r, a) (Either r p, [t]),
+    Fun (p, t) (Either r p)
+  ) ->
+  FPDA.FPDA r p a t
+mkFPDA (start, final, transRead', transPop') =
   FPDA.FPDA
     { FPDA.start = start,
-      FPDA.startSymbol = startSymbol,
       FPDA.final = final,
-      FPDA.transInput = δ,
-      FPDA.transStack = γ
+      FPDA.transRead = transRead,
+      FPDA.transPop = transPop
     }
   where
-    δ = applyFun δ'
-    γ = applyFun γ'
+    transRead = applyFun transRead'
+    transPop = applyFun transPop'
 
 -- | Make a monadic PDA.
 --

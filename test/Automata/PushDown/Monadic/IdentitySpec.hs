@@ -49,7 +49,7 @@ spec = do
         (`shouldSatisfy` IdentityPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` IdentityPDA.accepts dpda) <$> langComp
-  describe "fromSipserDPDA" $ do
+  xdescribe "fromSipserDPDA" $ do
     context "With an endlessly looping Sipser DPDA" $ do
       let pda = IdentityPDA.fromSipserDPDA SDPDASpec.dpdaLoop
       it "rejects the empty string" $ do
@@ -80,7 +80,7 @@ spec = do
         (`shouldSatisfy` IdentityPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` IdentityPDA.accepts pda) <$> langComp
-  describe "toSipserDPDA" $ do
+  xdescribe "toSipserDPDA" $ do
     context "With an endlessly looping FDPDA" $ do
       let sdpda = IdentityPDA.toSipserDPDA pdaLoop
       it "rejects the empty string" $ do

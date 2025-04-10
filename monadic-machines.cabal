@@ -169,4 +169,5 @@ test-suite monadic-machines-test
         hspec ^>=2.11.0,
         containers ^>=0.7,
         universe-base ^>= 1.1.4,
+        refined >= 0.8.2,
         monadic-machines

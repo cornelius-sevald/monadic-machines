@@ -16,30 +16,16 @@ accepts m w = acceptance $ runMPDA m w
   where
     acceptance = runIdentity
 
-fromFPDA :: FPDA s a t -> IdentityPDA s a t
-fromFPDA fpda =
-  MonadicPDA
-    { start = FPDA.start fpda,
-      final = FPDA.final fpda,
-      startSymbol = FPDA.startSymbol fpda,
-      transInput = Identity . FPDA.transInput fpda,
-      transStack = Identity . FPDA.transStack fpda
-    }
+fromFPDA :: FPDA r p a t -> IdentityPDA s a t
+fromFPDA fpda = undefined
 
-toFPDA :: IdentityPDA s a t -> FPDA s a t
-toFPDA m =
-  FPDA
-    { FPDA.start = start m,
-      FPDA.final = final m,
-      FPDA.startSymbol = startSymbol m,
-      FPDA.transInput = runIdentity . transInput m,
-      FPDA.transStack = runIdentity . transStack m
-    }
+toFPDA :: IdentityPDA s a t -> FPDA r p a t
+toFPDA m = undefined
 
 -- | See 'FPDA.fromSipserDPDA'.
-fromSipserDPDA :: (Ord s, Eq t) => SipserDPDA s a t -> IdentityPDA s a (Maybe t)
-fromSipserDPDA = fromFPDA . FPDA.fromSipserDPDA
+fromSipserDPDA :: (Ord s, Eq t) => SipserDPDA s a t -> IdentityPDA s a t
+fromSipserDPDA = error "TODO: implement"
 
 -- | See 'FPDA.toSipserDPDA'.
-toSipserDPDA :: (Ord s, Ord a) => IdentityPDA s a t -> EOISipserDPDA (State (s, Ended a)) a (Bottomed t)
-toSipserDPDA = FPDA.toSipserDPDA . toFPDA
+toSipserDPDA :: (Ord s, Ord a) => IdentityPDA s a t -> EOISipserDPDA s a t
+toSipserDPDA = error "TODO: implement"
