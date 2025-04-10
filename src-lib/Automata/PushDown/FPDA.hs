@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Functional Deterministic Pushdown Automata
 module Automata.PushDown.FPDA where
@@ -7,6 +7,7 @@ module Automata.PushDown.FPDA where
 import Automata.PushDown.SipserDPDA (EOISipserDPDA, SipserDPDA (SipserDPDA))
 import qualified Automata.PushDown.SipserDPDA as SDPDA
 import Automata.PushDown.Util
+import Control.Arrow (Arrow (first))
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -25,10 +26,10 @@ import qualified Data.Set as Set
 -- The read- and pop states, and, input- and stack alphabet
 -- is implicitly given by the types `p`, `r`, `a`, `t` respectively.
 data FPDA r p a t = FPDA
-  { start :: Either r p,
+  { start :: r,
     final :: Set (Either r p),
     transRead :: (r, a) -> (Either r p, [t]),
-    transPop :: (p, t) -> Either r p
+    transPop :: (p, t) -> Either (r, [t]) p
   }
 
 steps :: FPDA r p a t -> Either r p -> ([a], [t]) -> (Either r p, [a], [t])
@@ -38,13 +39,15 @@ steps fpda (Left r) (a : as, ts) =
    in steps fpda s' (as, ts' <> ts)
 steps fpda (Right p) (as, t : ts) =
   let δ_pop = transPop fpda
-      s' = δ_pop (p, t)
-   in steps fpda s' (as, ts)
+      onL = first Left
+      onR = first Right . (,[])
+      (s', ts') = either onL onR $ δ_pop (p, t)
+   in steps fpda s' (as, ts' <> ts)
 steps _ s (as, ts) = (s, as, ts)
 
 accepts :: (Ord r, Ord p) => FPDA r p a t -> [a] -> Bool
 accepts fpda as =
-  let (s, bs, _) = steps fpda (start fpda) (as, [])
+  let (s, bs, _) = steps fpda (Left $ start fpda) (as, [])
    in null bs && s `Set.member` final fpda
 
 -- | Convert a Sipser DPDA to a Functional PDA.
@@ -55,7 +58,7 @@ fromSipserDPDA pda = error "TODO: implement"
 
 -- | Convert a Functional PDA to a Sipser Deterministic PDA.
 --
--- TODO: Fix
+-- TODO: Implement
 toSipserDPDA :: FPDA r p a t -> SipserDPDA (r, p) a t
 toSipserDPDA fpda = error "TODO: implement"
 

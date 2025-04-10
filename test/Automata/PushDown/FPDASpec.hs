@@ -140,7 +140,7 @@ spec = do
 fpdaPopEmpty :: FPDA Int Int Word8 ()
 fpdaPopEmpty =
   FPDA
-    { start = Left 1,
+    { start = 1,
       final = [Right 1],
       transRead = \case
         (1, n) -> (Right 1, replicate (fromIntegral n) ())
@@ -155,7 +155,7 @@ fpdaPopEmpty =
 fpdakOkI :: FPDA Int Int Bit Char
 fpdakOkI =
   FPDA
-    { start = Left 1,
+    { start = 1,
       final = [Left 1, Left 4],
       transRead = \case
         (0, _) -> (Left 0, "")
@@ -168,8 +168,8 @@ fpdakOkI =
         (4, _) -> (Left 0, "") -- FAL: More symbols after k 'I's.
         c -> error $ "invalid configuration " ++ show c,
       transPop = \case
-        (1, '+') -> (Left 3)
-        (1, '$') -> (Left 4)
+        (1, '+') -> (Left (3, []))
+        (1, '$') -> (Left (4, []))
         c -> error $ "invalid configuration " ++ show c
     }
 
@@ -177,7 +177,7 @@ fpdakOkI =
 fpdaMirrored :: FPDA Int (Int, ABC) (Either ABC ()) (ABC, Bool)
 fpdaMirrored =
   FPDA
-    { start = Left 1,
+    { start = 1,
       final = [Left 4],
       transRead = \case
         (0, _) -> (Left 0, [])
@@ -191,8 +191,8 @@ fpdaMirrored =
         c -> error $ "invalid configuration " ++ show c,
       transPop = \case
         ((1, a), (t, b))
-          | a == t && not b -> Left 3
-          | a == t && b -> Left 4
-          | otherwise -> Left 0
+          | a == t && not b -> Left (3, [])
+          | a == t && b -> Left (4, [])
+          | otherwise -> Left (0, [])
         c -> error $ "invalid configuration " ++ show c
     }

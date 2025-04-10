@@ -175,10 +175,10 @@ mkSipserNPDA (start, final, trans') =
     trans = applyFun trans'
 
 mkFPDA ::
-  ( Either r p,
+  ( r,
     Set (Either r p),
     Fun (r, a) (Either r p, [t]),
-    Fun (p, t) (Either r p)
+    Fun (p, t) (Either (r, [t]) p)
   ) ->
   FPDA.FPDA r p a t
 mkFPDA (start, final, transRead', transPop') =
