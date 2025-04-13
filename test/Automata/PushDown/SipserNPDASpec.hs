@@ -51,8 +51,8 @@ spec = do
 npdaLoop :: SipserNPDA Int Word8 Word8
 npdaLoop =
   SipserNPDA
-    { start = 1,
-      final = Set.fromList [2],
+    { startState = 1,
+      finalStates = Set.fromList [2],
       trans = \case
         (1, Nothing, Just n) -> [(2, [n])]
         (2, Nothing, Nothing) -> [(3, [])]
@@ -64,8 +64,8 @@ npdaLoop =
 npdakOkI :: SipserNPDA Int Bit Char
 npdakOkI =
   SipserNPDA
-    { start = 1,
-      final = [1, 4],
+    { startState = 1,
+      finalStates = [1, 4],
       trans = \case
         (1, Nothing, Nothing) -> [(2, "$")]
         (2, Nothing, Just O) -> [(2, "+")]
@@ -79,8 +79,8 @@ npdakOkI =
 npdaPalindromes :: SipserNPDA Int ABC (Either ABC ())
 npdaPalindromes =
   SipserNPDA
-    { start = 1,
-      final = [4],
+    { startState = 1,
+      finalStates = [4],
       trans = \case
         (1, Nothing, Nothing) ->
           [(2, [Right ()])]

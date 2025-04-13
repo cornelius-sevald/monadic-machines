@@ -48,6 +48,9 @@ data Ended a
   | End
   deriving (Show, Eq, Ord, Generic)
 
+end :: [a] -> [Ended a]
+end w = fmap ISymbol w <> [End]
+
 instance (Arbitrary a) => Arbitrary (Ended a) where
   arbitrary = maybe End ISymbol <$> arbitrary
   shrink = genericShrink
@@ -57,6 +60,9 @@ data Bottomed a
   = SSymbol a
   | Bottom
   deriving (Show, Eq, Ord, Generic)
+
+bottom :: [a] -> [Bottomed a]
+bottom w = fmap SSymbol w <> [Bottom]
 
 instance (Arbitrary a) => Arbitrary (Bottomed a) where
   arbitrary = maybe Bottom SSymbol <$> arbitrary

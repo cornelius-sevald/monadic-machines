@@ -27,9 +27,9 @@ import qualified Data.Set as Set
 -- `s`, `a` and `t` respectively.
 data SipserNPDA s a t = SipserNPDA
   { -- | The start state q_1.
-    start :: s,
+    startState :: s,
     -- | The set of final states F.
-    final :: Set s,
+    finalStates :: Set s,
     -- | The transition function δ.
     trans :: (s, Maybe t, Maybe a) -> Set (s, [t])
   }
@@ -88,11 +88,11 @@ step pda a (s, ts) =
     f (s', ts') = stepStack pda s' ts' (Just a)
 
 accepts :: (Ord s, Ord t) => SipserNPDA s a t -> [a] -> Bool
-accepts pda as = go as (start pda, [])
+accepts pda as = go as (startState pda, [])
   where
     go [] c =
       let ss = Set.map fst $ stepE pda [] c
-       in not $ null $ Set.intersection ss (final pda)
+       in not $ null $ Set.intersection ss (finalStates pda)
     go (a : as') c =
       let cs' = step pda a c
        in any (go as') cs'

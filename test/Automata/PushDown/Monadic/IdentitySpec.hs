@@ -125,8 +125,8 @@ spec = do
 pdaLoop :: IdentityPDA Int Word8 (Maybe Word8)
 pdaLoop =
   MonadicPDA
-    { start = 1,
-      final = Set.fromList [2],
+    { startState = 1,
+      finalStates = Set.fromList [2],
       startSymbol = Nothing,
       transInput =
         Identity . \case
@@ -152,8 +152,8 @@ pdaLoop =
 pdaPopEmpty :: IdentityPDA Int () ()
 pdaPopEmpty =
   MonadicPDA
-    { start = 1,
-      final = Set.fromList [1],
+    { startState = 1,
+      finalStates = Set.fromList [1],
       startSymbol = (),
       transInput =
         Identity . \case
@@ -183,8 +183,8 @@ pdaPopEmpty =
 pdakOkI :: IdentityPDA Int Bit Char
 pdakOkI =
   MonadicPDA
-    { start = 1,
-      final = [1],
+    { startState = 1,
+      finalStates = [1],
       startSymbol = '$',
       transInput =
         Identity . \case
@@ -221,8 +221,8 @@ pdakOkI =
 pdaMirrored :: IdentityPDA Int (Either ABC ()) (Either ABC ())
 pdaMirrored =
   MonadicPDA
-    { start = 1,
-      final = [1],
+    { startState = 1,
+      finalStates = [1],
       startSymbol = Right (),
       transInput =
         Identity . \case

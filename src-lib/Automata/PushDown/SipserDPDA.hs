@@ -37,9 +37,9 @@ import GHC.IsList
 -- `s`, `a` and `t` respectively.
 data SipserDPDA s a t = SipserDPDA
   { -- | The start state q_1.
-    start :: s,
+    startState :: s,
     -- | The set of final states F.
-    final :: Set s,
+    finalStates :: Set s,
     -- | The transition function δ.
     trans :: (s, Maybe t, Maybe a) -> Maybe (s, [t])
   }
@@ -142,17 +142,17 @@ step pda a (s, ts) =
         Just c' -> Left c'
 
 accepts :: (Ord s, Eq t) => SipserDPDA s a t -> [a] -> Bool
-accepts pda as = go as (start pda, [])
+accepts pda as = go as (startState pda, [])
   where
     go [] c =
       case stepE pda [] c of
         -- When we have read all input, check if the current state is final.
         Left cs ->
           let ss = fst <$> cs
-           in any (`Set.member` final pda) ss
+           in any (`Set.member` finalStates pda) ss
         -- If we have read all input and is in an infinite cycle,
         -- we accept if any of the reachable states are final.
-        Right ss -> any (`Set.member` final pda) ss
+        Right ss -> any (`Set.member` finalStates pda) ss
     go (a : as') c =
       case step pda a c of
         Left c' -> go as' c'

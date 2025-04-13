@@ -31,16 +31,16 @@ acceptsDemonic m w = acceptance $ runMPDA m w
 fromSipserNPDA :: (Ord s, Ord t) => SipserNPDA s a t -> ListPDA s a (Maybe t)
 fromSipserNPDA pda =
   MonadicPDA
-    { start = SNPDA.start pda,
+    { startState = SNPDA.startState pda,
       startSymbol = Nothing,
-      final = _final,
+      finalStates = _final,
       transInput = _transInput,
       transStack = _transStack
     }
   where
     splitMaybe x = case x of Nothing -> [Nothing]; Just y -> [Nothing, Just y]
     δ = SNPDA.trans pda
-    _final = SNPDA.final pda
+    _final = SNPDA.finalStates pda
     _transInput (s, t, a) =
       let input = (,) <$> splitMaybe t <*> splitMaybe (Just a)
           cs = (\(t', a') -> (s, t', a')) <$> input
@@ -94,8 +94,8 @@ toSipserNPDA ::
   EOISipserNPDA (State (s, Ended a)) a (Bottomed t)
 toSipserNPDA m =
   SipserNPDA
-    { SNPDA.start = _start,
-      SNPDA.final = _final,
+    { SNPDA.startState = _start,
+      SNPDA.finalStates = _final,
       SNPDA.trans = _trans
     }
   where
@@ -108,7 +108,7 @@ toSipserNPDA m =
         -- From the starting state, we put the start symbol on the stack,
         -- and move to the "real" start state, peeking at input symbol 'p'.
         (Start, Nothing, Just p) ->
-          let s = Middle (start m, p)
+          let s = Middle (startState m, p)
               t = SSymbol $ startSymbol m
            in pure (s, [t, Bottom])
         (Start, _, _) -> []
@@ -146,6 +146,6 @@ toSipserNPDA m =
         -- If so, we move to the dedicated final state 'Final' (of the SNPDA).
         -- Otherwise, we want to reject the input, so we stay in this state.
         (Middle (s, End), Just Bottom, Nothing)
-          | s `Set.member` final m -> pure (Final, [])
+          | s `Set.member` finalStates m -> pure (Final, [])
           | otherwise -> pure (Middle (s, End), [])
         (Middle (_, End), _, _) -> []

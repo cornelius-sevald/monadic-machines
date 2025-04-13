@@ -146,10 +146,10 @@ mkMFA (start, final, trans') =
 mkSipserDPDA ::
   (s, Set s, Fun s (NAry 4), Fun (s, Maybe t, Maybe a) (s, [t])) ->
   SDPDA.SipserDPDA s a t
-mkSipserDPDA (start, final, select', trans') =
+mkSipserDPDA (startStates, finalStates, select', trans') =
   SDPDA.SipserDPDA
-    { SDPDA.start = start,
-      SDPDA.final = final,
+    { SDPDA.startState = startStates,
+      SDPDA.finalStates = finalStates,
       SDPDA.trans = trans
     }
   where
@@ -165,26 +165,28 @@ mkSipserDPDA (start, final, select', trans') =
 mkSipserNPDA ::
   (s, Set s, Fun (s, Maybe t, Maybe a) (Set (s, [t]))) ->
   SNPDA.SipserNPDA s a t
-mkSipserNPDA (start, final, trans') =
+mkSipserNPDA (startState, finalStates, trans') =
   SNPDA.SipserNPDA
-    { SNPDA.start = start,
-      SNPDA.final = final,
+    { SNPDA.startState = startState,
+      SNPDA.finalStates = finalStates,
       SNPDA.trans = trans
     }
   where
     trans = applyFun trans'
 
 mkFPDA ::
-  ( r,
-    Set (Either r p),
-    Fun (r, a) (Either r p, [t]),
+  ( t,
+    r,
+    Set r,
+    Fun (r, a) p,
     Fun (p, t) (Either (r, [t]) p)
   ) ->
   FPDA.FPDA r p a t
-mkFPDA (start, final, transRead', transPop') =
+mkFPDA (startSymbol, startState, finalStates, transRead', transPop') =
   FPDA.FPDA
-    { FPDA.start = start,
-      FPDA.final = final,
+    { FPDA.startSymbol = startSymbol,
+      FPDA.startState = startState,
+      FPDA.finalStates = finalStates,
       FPDA.transRead = transRead,
       FPDA.transPop = transPop
     }
@@ -201,13 +203,13 @@ mkFPDA (start, final, transRead', transPop') =
 mkMPDA ::
   (Monad m, Ord s, Ord t) =>
   (forall x. (Ord x) => m x -> m x) ->
-  (s, Set s, t, Fun (s, t, a) (m (s, [t], Bool)), Fun (s, t) (m s)) ->
+  (t, s, Set s, Fun (s, t, a) (m (s, [t], Bool)), Fun (s, t) (m s)) ->
   MPDA.MonadicPDA m s a t
-mkMPDA shrink (start, final, startSymbol, δ', γ') =
+mkMPDA shrink (startSymbol, startState, finalStates, δ', γ') =
   MPDA.MonadicPDA
-    { MPDA.start = start,
-      MPDA.startSymbol = startSymbol,
-      MPDA.final = final,
+    { MPDA.startSymbol = startSymbol,
+      MPDA.startState = startState,
+      MPDA.finalStates = finalStates,
       MPDA.transInput = δ,
       MPDA.transStack = γ
     }

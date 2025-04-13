@@ -59,7 +59,7 @@ spec = do
       let (lang, langComp) = (nonpalindromes, palindromes)
       -- Here we flip all final states,
       -- and use demonic non-determinism.
-      let pda = pdaPalindromes {MPDA.final = [0, 1, 2]}
+      let pda = pdaPalindromes {MPDA.finalStates = [0, 1, 2]}
       prop "accepts strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
       prop "rejects strings not in L" $ do
@@ -142,8 +142,8 @@ spec = do
 pdaLoop :: ListPDA Int Word8 (Maybe Word8)
 pdaLoop =
   MPDA.MonadicPDA
-    { MPDA.start = 1,
-      MPDA.final = Set.fromList [2],
+    { MPDA.startState = 1,
+      MPDA.finalStates = Set.fromList [2],
       MPDA.startSymbol = Nothing,
       MPDA.transInput = \case
         (1, Nothing, n) -> [(2, [Just n], True)]
@@ -160,8 +160,8 @@ pdaLoop =
 pdakOkI :: ListPDA Int Bit Char
 pdakOkI =
   MPDA.MonadicPDA
-    { MPDA.start = 1,
-      MPDA.final = Set.fromList [3],
+    { MPDA.startState = 1,
+      MPDA.finalStates = Set.fromList [3],
       MPDA.startSymbol = '$',
       MPDA.transInput = \case
         (1, '$', O) -> [(1, "+$", True)]
@@ -179,8 +179,8 @@ pdakOkI =
 pdaPalindromes :: ListPDA Int ABC (Either ABC ())
 pdaPalindromes =
   MPDA.MonadicPDA
-    { MPDA.start = 1,
-      MPDA.final = [3],
+    { MPDA.startState = 1,
+      MPDA.finalStates = [3],
       MPDA.startSymbol = Right (),
       MPDA.transInput = \case
         (1, t, x) ->

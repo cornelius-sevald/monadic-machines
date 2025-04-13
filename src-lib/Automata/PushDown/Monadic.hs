@@ -28,9 +28,9 @@ import qualified Data.Set as Set
 -- The monad, states, input- and stack alphabet is implicitly given by the types
 -- `m`, `s`, `a` and `t` respectively.
 data MonadicPDA m s a t = MonadicPDA
-  { start :: s,
-    final :: Set s,
-    startSymbol :: t,
+  { startSymbol :: t,
+    startState :: s,
+    finalStates :: Set s,
     transInput :: (s, t, a) -> m (s, [t], Bool),
     transStack :: (s, t) -> m s
   }
@@ -72,9 +72,9 @@ stepsStackM m = foldM (stepStackM m)
 
 runMPDA :: (Monad m, Ord s, Eq a, Eq t) => MonadicPDA m s a t -> [a] -> m Bool
 runMPDA m as = do
-  c <- stepsInputM m [] (start m, [startSymbol m], as)
+  c <- stepsInputM m [] (startState m, [startSymbol m], as)
   case c of
     Nothing -> pure False
     Just (s', ts') -> do
       s'' <- stepsStackM m s' ts'
-      pure (s'' `Set.member` final m)
+      pure (s'' `Set.member` finalStates m)

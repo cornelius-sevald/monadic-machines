@@ -9,12 +9,14 @@ import Automata.PushDown.FPDA (FPDA (..))
 import qualified Automata.PushDown.FPDA as FPDA
 import qualified Automata.PushDown.SipserDPDA as SDPDA
 import qualified Automata.PushDown.SipserDPDASpec as SDPDASpec
+import Automata.PushDown.Util
 import Data.Alphabet
+import qualified Data.List as List
 import Data.NAry (NAry)
-import Data.Word (Word8)
-import Refined (Even (..), Odd (..), Refined, unrefine)
+import Data.Word
 import Test.Hspec
 import Test.Hspec.QuickCheck
+import Test.QuickCheck
 import Test.Util
 
 -- | The number of states used in random PDAs.
@@ -32,18 +34,6 @@ type T = ABC
 spec :: Spec
 spec = do
   describe "Example FPDAs" $ do
-    describe "An FPDA popping from an empty stack" $ do
-      let fpda = fpdaPopEmpty
-      it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` FPDA.accepts fpda
-      prop "rejects all strings of a single odd number" $
-        \(n :: Refined Odd Word8) ->
-          [unrefine n] `shouldNotSatisfy` FPDA.accepts fpda
-      prop "accepts all strings of a single even number" $
-        \(n :: Refined Even Word8) ->
-          [unrefine n] `shouldSatisfy` FPDA.accepts fpda
-      prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let fpda = fpdakOkI
@@ -58,7 +48,7 @@ spec = do
         (`shouldSatisfy` FPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts dpda) <$> langComp
-  xdescribe "fromSipserDPDA" $ do
+  describe "fromSipserDPDA" $ do
     context "With an endlessly looping Sipser DPDA" $ do
       let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaLoop
       it "rejects the empty string" $ do
@@ -67,6 +57,17 @@ spec = do
         \n -> [n] `shouldSatisfy` FPDA.accepts fpda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
+    describe "With a Sipser DPDA accepting only strings of numbers that sum to ≥ 5" $
+      modifyMaxSize (`div` 10) $ do
+        let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaSumLeastFive
+        let ws' :: ([Integer] -> Bool) -> Gen [Ended Word8]
+            ws' f = fmap end $ arbitrary `suchThat` (f . (fromIntegral <$>))
+        prop "rejects all strings whose sum < 5" $
+          let ws = ws' ((< 5) . sum)
+           in (`shouldNotSatisfy` FPDA.accepts fpda) <$> ws
+        prop "accepts all strings whose sum ≥ 5" $
+          let ws = ws' ((>= 5) . sum)
+           in (`shouldSatisfy` FPDA.accepts fpda) <$> ws
     context "With an Sipser DPDA popping from an empty stack" $ do
       let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaPopEmpty
       it "rejects the empty string" $ do
@@ -90,20 +91,13 @@ spec = do
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
     context "For a random Sipser DPDA" $ do
-      prop "recognizes the same language" $ do
-        \sdpda' w ->
-          let sdpda = mkSipserDPDA sdpda' :: SDPDA.SipserDPDA S A T
-              fpda = FPDA.fromSipserDPDA sdpda
-           in FPDA.accepts fpda w `shouldBe` SDPDA.accepts sdpda w
-  xdescribe "toSipserDPDA" $ do
-    context "An FPDA popping from an empty stack" $ do
-      let sdpda = FPDA.toSipserDPDA fpdaPopEmpty
-      it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` SDPDA.accepts sdpda
-      prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` SDPDA.accepts sdpda
-      prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts sdpda
+      modifyMaxSize (`div` 5) $ do
+        prop "recognizes the same language" $ do
+          \sdpda' w ->
+            let sdpda = mkSipserDPDA sdpda' :: SDPDA.SipserDPDA S A T
+                fpda = FPDA.fromSipserDPDA sdpda
+             in FPDA.accepts fpda w `shouldBe` SDPDA.accepts sdpda w
+  describe "toSipserDPDA" $ do
     context "For a FPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
       let sdpda = FPDA.toSipserDPDA fpdakOkI
@@ -128,71 +122,50 @@ spec = do
 
 {- Example FPDAs -}
 
--- | A FPDA that reads a single input number,
--- and then pushes that many input symbols to the stack.
--- Then proceeds to pop input symbols from the stack,
--- alternating between an accepting and non-accepting state.
---
--- Should accepts iff. the input is a single even number.
---
--- This is to check that popping from an empty stack
--- is handled properly.
-fpdaPopEmpty :: FPDA Int Int Word8 ()
-fpdaPopEmpty =
-  FPDA
-    { start = 1,
-      final = [Right 1],
-      transRead = \case
-        (1, n) -> (Right 1, replicate (fromIntegral n) ())
-        c -> error $ "invalid configuration " ++ show c,
-      transPop = \case
-        (1, ()) -> Right 2
-        (2, ()) -> Right 1
-        c -> error $ "invalid configuration " ++ show c
-    }
-
 -- | A FPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
-fpdakOkI :: FPDA Int Int Bit Char
+fpdakOkI :: FPDA Word8 (Maybe Char) Bit Char
 fpdakOkI =
   FPDA
-    { start = 1,
-      final = [Left 1, Left 4],
+    { startState = 1,
+      finalStates = [1, 4],
+      startSymbol = '$',
       transRead = \case
-        (0, _) -> (Left 0, "")
-        (1, O) -> (Left 2, "$")
-        (1, I) -> (Left 0, "") -- FAIL: 'I' before any 'O's.
-        (2, O) -> (Left 2, "+")
-        (2, I) -> (Right 1, "")
-        (3, O) -> (Left 0, "") -- FAIL: 'O' after 'I's.
-        (3, I) -> (Right 1, "")
-        (4, _) -> (Left 0, "") -- FAL: More symbols after k 'I's.
+        (1, O) -> Just 'A'
+        (1, I) -> Nothing -- FAIL: 'I' before any 'O's.
+        (2, O) -> Just 'B'
+        (2, I) -> Just 'C'
+        (3, O) -> Nothing -- FAIL: 'O' after 'I's.
+        (3, I) -> Just 'D'
+        (4, _) -> Nothing -- FAL: More symbols after k 'I's.
         c -> error $ "invalid configuration " ++ show c,
       transPop = \case
-        (1, '+') -> (Left (3, []))
-        (1, '$') -> (Left (4, []))
+        (Nothing, _) -> Right Nothing
+        (Just 'A', '$') -> Left (2, "$")
+        (Just 'B', '$') -> Left (2, "+$")
+        (Just 'B', '+') -> Left (2, "++")
+        (Just 'C', '$') -> Left (4, "")
+        (Just 'C', '+') -> Left (3, "")
+        (Just 'D', '$') -> Left (4, "")
+        (Just 'D', '+') -> Left (3, "")
         c -> error $ "invalid configuration " ++ show c
     }
 
 -- | A FPDA which recognizes the language {w·c·w^R | c ∉ w}.
-fpdaMirrored :: FPDA Int (Int, ABC) (Either ABC ()) (ABC, Bool)
+fpdaMirrored :: FPDA (State ABC) (Maybe (Either ABC ())) (Either ABC ()) (Bottomed ABC)
 fpdaMirrored =
   FPDA
-    { start = 1,
-      final = [Left 4],
+    { startState = Start,
+      finalStates = [Final],
+      startSymbol = Bottom,
       transRead = \case
-        (0, _) -> (Left 0, [])
-        (1, Left a) -> (Left 2, [(a, True)])
-        (1, Right ()) -> (Left 4, [])
-        (2, Left a) -> (Left 2, [(a, False)])
-        (2, Right ()) -> (Left 3, [])
-        (3, Left a) -> (Right (1, a), [])
-        (3, Right ()) -> (Left 0, [])
-        (4, _) -> (Left 0, [])
-        c -> error $ "invalid configuration " ++ show c,
+        (Start, a) -> Just a
+        (Middle a', a)
+          | Left a' == a -> Just $ Right ()
+          | otherwise -> Nothing
+        (Final, _) -> Nothing,
       transPop = \case
-        ((1, a), (t, b))
-          | a == t && not b -> Left (3, [])
-          | a == t && b -> Left (4, [])
-          | otherwise -> Left (0, [])
-        c -> error $ "invalid configuration " ++ show c
+        (Nothing, _) -> Right Nothing
+        (Just (Left a), t) -> Left (Start, [SSymbol a, t])
+        (Just (Right ()), Bottom) -> Left (Final, [])
+        (Just (Right ()), SSymbol t) -> Left (Middle t, [])
     }
