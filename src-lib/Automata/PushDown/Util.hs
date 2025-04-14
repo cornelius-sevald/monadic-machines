@@ -1,10 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Automata.PushDown.Util where
 
 import Data.Bool (bool)
 import Data.Foldable (find)
 import Data.Maybe (listToMaybe)
+import Data.Universe.Class
+import Data.Universe.Helpers
 import GHC.Generics (Generic)
 import Test.QuickCheck
 
@@ -55,6 +58,13 @@ instance (Arbitrary a) => Arbitrary (Ended a) where
   arbitrary = maybe End ISymbol <$> arbitrary
   shrink = genericShrink
 
+instance (Universe a) => Universe (Ended a) where
+  universe = End : (ISymbol <$> universe)
+
+instance (Finite a) => Finite (Ended a) where
+  universeF = End : (ISymbol <$> universeF)
+  cardinality = fmap succ (retag (cardinality :: Tagged a Natural))
+
 -- A stack symbol, or a bottom-of-stack marker
 data Bottomed a
   = SSymbol a
@@ -67,6 +77,13 @@ bottom w = fmap SSymbol w <> [Bottom]
 instance (Arbitrary a) => Arbitrary (Bottomed a) where
   arbitrary = maybe Bottom SSymbol <$> arbitrary
   shrink = genericShrink
+
+instance (Universe a) => Universe (Bottomed a) where
+  universe = Bottom : (SSymbol <$> universe)
+
+instance (Finite a) => Finite (Bottomed a) where
+  universeF = Bottom : (SSymbol <$> universeF)
+  cardinality = fmap succ (retag (cardinality :: Tagged a Natural))
 
 data State s
   = Start

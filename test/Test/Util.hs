@@ -178,7 +178,7 @@ mkFPDA ::
   ( t,
     r,
     Set r,
-    Fun (r, a) p,
+    Fun (r, a) (Either (r, [t]) p),
     Fun (p, t) (Either (r, [t]) p)
   ) ->
   FPDA.FPDA r p a t

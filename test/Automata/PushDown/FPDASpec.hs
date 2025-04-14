@@ -11,7 +11,6 @@ import qualified Automata.PushDown.SipserDPDA as SDPDA
 import qualified Automata.PushDown.SipserDPDASpec as SDPDASpec
 import Automata.PushDown.Util
 import Data.Alphabet
-import qualified Data.List as List
 import Data.NAry (NAry)
 import Data.Word
 import Test.Hspec
@@ -123,49 +122,47 @@ spec = do
 {- Example FPDAs -}
 
 -- | A FPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
-fpdakOkI :: FPDA Word8 (Maybe Char) Bit Char
+fpdakOkI :: FPDA (Maybe Word8) Char Bit Char
 fpdakOkI =
   FPDA
-    { startState = 1,
-      finalStates = [1, 4],
+    { startState = Just 1,
+      finalStates = [Just 1, Just 4],
       startSymbol = '$',
       transRead = \case
-        (1, O) -> Just 'A'
-        (1, I) -> Nothing -- FAIL: 'I' before any 'O's.
-        (2, O) -> Just 'B'
-        (2, I) -> Just 'C'
-        (3, O) -> Nothing -- FAIL: 'O' after 'I's.
-        (3, I) -> Just 'D'
-        (4, _) -> Nothing -- FAL: More symbols after k 'I's.
+        (Nothing, _) -> Left (Nothing, "")
+        (Just 1, O) -> Left (Just 2, "")
+        (Just 1, I) -> Left (Nothing, "") -- FAIL: 'I' before any 'O's.
+        (Just 2, O) -> Left (Just 2, "+")
+        (Just 2, I) -> Right 'A'
+        (Just 3, O) -> Left (Nothing, []) -- FAIL: 'O' after 'I's.
+        (Just 3, I) -> Right 'B'
+        (Just 4, _) -> Left (Nothing, []) -- FAL: More symbols after k 'I's.
         c -> error $ "invalid configuration " ++ show c,
       transPop = \case
-        (Nothing, _) -> Right Nothing
-        (Just 'A', '$') -> Left (2, "$")
-        (Just 'B', '$') -> Left (2, "+$")
-        (Just 'B', '+') -> Left (2, "++")
-        (Just 'C', '$') -> Left (4, "")
-        (Just 'C', '+') -> Left (3, "")
-        (Just 'D', '$') -> Left (4, "")
-        (Just 'D', '+') -> Left (3, "")
+        ('A', '$') -> Left (Just 4, "")
+        ('A', '+') -> Left (Just 3, "")
+        ('B', '$') -> Left (Just 4, "")
+        ('B', '+') -> Left (Just 3, "")
         c -> error $ "invalid configuration " ++ show c
     }
 
 -- | A FPDA which recognizes the language {w·c·w^R | c ∉ w}.
-fpdaMirrored :: FPDA (State ABC) (Maybe (Either ABC ())) (Either ABC ()) (Bottomed ABC)
+fpdaMirrored :: FPDA (State ABC) Word8 (Either ABC ()) (Bottomed ABC)
 fpdaMirrored =
   FPDA
     { startState = Start,
       finalStates = [Final],
       startSymbol = Bottom,
       transRead = \case
-        (Start, a) -> Just a
+        (Start, Left a) -> Left (Start, [SSymbol a])
+        (Start, Right ()) -> Right 1
         (Middle a', a)
-          | Left a' == a -> Just $ Right ()
-          | otherwise -> Nothing
-        (Final, _) -> Nothing,
+          | Left a' == a -> Right 1
+          | otherwise -> Right 0
+        (Final, _) -> Right 0,
       transPop = \case
-        (Nothing, _) -> Right Nothing
-        (Just (Left a), t) -> Left (Start, [SSymbol a, t])
-        (Just (Right ()), Bottom) -> Left (Final, [])
-        (Just (Right ()), SSymbol t) -> Left (Middle t, [])
+        (0, _) -> Right 0
+        (1, Bottom) -> Left (Final, [])
+        (1, SSymbol t) -> Left (Middle t, [])
+        c -> error $ "invalid configuration " ++ show c
     }
