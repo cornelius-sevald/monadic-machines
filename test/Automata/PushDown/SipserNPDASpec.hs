@@ -48,7 +48,7 @@ spec = do
 --
 -- This should continue until n=255,
 -- where it will overflow and the loop should be detected.
-npdaLoop :: SipserNPDA Int Word8 Word8
+npdaLoop :: SipserNPDA Word8 Word8 Word8
 npdaLoop =
   SipserNPDA
     { startState = 1,
@@ -61,7 +61,7 @@ npdaLoop =
     }
 
 -- | PDA from figure 2.15 of [1]
-npdakOkI :: SipserNPDA Int Bit Char
+npdakOkI :: SipserNPDA Word8 Bit Char
 npdakOkI =
   SipserNPDA
     { startState = 1,
@@ -76,7 +76,7 @@ npdakOkI =
     }
 
 -- | A PDA that recognizes palindromes.
-npdaPalindromes :: SipserNPDA Int ABC (Either ABC ())
+npdaPalindromes :: SipserNPDA Word8 ABC (Either ABC ())
 npdaPalindromes =
   SipserNPDA
     { startState = 1,

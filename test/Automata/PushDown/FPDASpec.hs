@@ -122,7 +122,37 @@ spec = do
 {- Example FPDAs -}
 
 -- | A FPDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
-fpdakOkI :: FPDA (Maybe Word8) Char Bit Char
+--
+-- The idea is, after reading the initial 'O' (if there is one),
+-- we push a marker symbol ('+') on the stack for each subsequent
+-- 'O' read. When reading the first 'I', we reject any further 'O's,
+-- and for each 'I' we read, we inspect the stack.
+-- If it is a '+', we pop it from the stack. If it is a '$',
+-- then we have read an equal number of 'O's followed by 'I's,
+-- and so we accept, iff. there is no more input.
+--
+-- The read states are as follows:
+--   State 1, the initial state.
+--     Either reads a single 'O' and progresses
+--     to state 2, rejects when reading a 'I',
+--     or accepts on no input.
+--   State 2.
+--     Keeps reading 'O's, pushing a '+' to the
+--     stack for each 'O' read.
+--     If an 'I' is read, goes to the pop state.
+--   State 3.
+--     Keeps reading 'I's, popping a '+' from the
+--     stack for each 'I' read (via the pop state).
+--     Rejects when reading a 'O'.
+--   State 4, a final state that rejects on
+--     any further input.
+--
+-- There is only a single pop state,
+-- which goes goes to state 4 (a final state)
+-- if the bottom of the stack is reached
+-- (signaled with the '$' symbol).
+-- Otherwise (on a '+' symbol), it goes to state 3.
+fpdakOkI :: FPDA (Maybe Int) () Bit Char
 fpdakOkI =
   FPDA
     { startState = Just 1,
@@ -133,36 +163,59 @@ fpdakOkI =
         (Just 1, O) -> Left (Just 2, "")
         (Just 1, I) -> Left (Nothing, "") -- FAIL: 'I' before any 'O's.
         (Just 2, O) -> Left (Just 2, "+")
-        (Just 2, I) -> Right 'A'
+        (Just 2, I) -> Right ()
         (Just 3, O) -> Left (Nothing, []) -- FAIL: 'O' after 'I's.
-        (Just 3, I) -> Right 'B'
+        (Just 3, I) -> Right ()
         (Just 4, _) -> Left (Nothing, []) -- FAL: More symbols after k 'I's.
         c -> error $ "invalid configuration " ++ show c,
       transPop = \case
-        ('A', '$') -> Left (Just 4, "")
-        ('A', '+') -> Left (Just 3, "")
-        ('B', '$') -> Left (Just 4, "")
-        ('B', '+') -> Left (Just 3, "")
+        ((), '$') -> Left (Just 4, "")
+        ((), '+') -> Left (Just 3, "")
         c -> error $ "invalid configuration " ++ show c
     }
 
 -- | A FPDA which recognizes the language {w·c·w^R | c ∉ w}.
-fpdaMirrored :: FPDA (State ABC) Word8 (Either ABC ()) (Bottomed ABC)
+--
+-- The idea is that we put each input symbol read onto
+-- the stack, until we hit the 'c' symbol.
+-- From there, we pop symbols from the stack,
+-- and move to a state indexed by that stack symbol.
+-- From this state, we can compare the stack symbol
+-- with the next symbol to read.
+--
+-- The read states are as follows:
+--   State (Left False), the initial state.
+--     Reads input symbols, pushing them to the stack,
+--     until it reads the 'c' symbol.
+--   State (Left True), the final state.
+--     Moves to the rejecting state if any further input is read.
+--   State (Right t), where 't' is a stack symbol.
+--     Checks that the associated stack symbol
+--     matches the input symbol, moving to the rejecting state if not.
+--
+-- The pop states are as follows:
+--   State 0, the rejecting state.
+--   State 1.
+--     When reading stack symbol 't',
+--     moves to read state 'Right t'.
+--     When reaching the bottom of the stack,
+--     moves to the final state, 'Left True'.
+fpdaMirrored :: FPDA (Either Bool ABC) Int (Either ABC ()) (Bottomed ABC)
 fpdaMirrored =
   FPDA
-    { startState = Start,
-      finalStates = [Final],
+    { startState = Left False,
+      finalStates = [Left True],
       startSymbol = Bottom,
       transRead = \case
-        (Start, Left a) -> Left (Start, [SSymbol a])
-        (Start, Right ()) -> Right 1
-        (Middle a', a)
-          | Left a' == a -> Right 1
+        (Left False, Left a) -> Left (Left False, [SSymbol a])
+        (Left False, Right ()) -> Right 1
+        (Right t, a)
+          | Left t == a -> Right 1
           | otherwise -> Right 0
-        (Final, _) -> Right 0,
+        (Left True, _) -> Right 0,
       transPop = \case
         (0, _) -> Right 0
-        (1, Bottom) -> Left (Final, [])
-        (1, SSymbol t) -> Left (Middle t, [])
+        (1, Bottom) -> Left (Left True, [])
+        (1, SSymbol t) -> Left (Right t, [])
         c -> error $ "invalid configuration " ++ show c
     }

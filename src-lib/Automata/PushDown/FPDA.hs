@@ -44,18 +44,18 @@ catch :: Either x p -> Maybe x
 catch (Left x) = Just x
 catch (Right _) = Nothing
 
-stepStack :: FPDA r p a t -> Either (r, [t]) p -> t -> Either (r, [t]) p
-stepStack _ (Left (r, ts)) t = Left (r, ts <> [t])
-stepStack fpda (Right p) t = transPop fpda (p, t)
+stepPop :: FPDA r p a t -> Either (r, [t]) p -> t -> Either (r, [t]) p
+stepPop _ (Left (r, ts)) t = Left (r, ts <> [t])
+stepPop fpda (Right p) t = transPop fpda (p, t)
 
-step :: FPDA r p a t -> (r, [t]) -> a -> Maybe (r, [t])
-step fpda (r, ts) a =
-  let f = stepStack fpda
+stepRead :: FPDA r p a t -> (r, [t]) -> a -> Maybe (r, [t])
+stepRead fpda (r, ts) a =
+  let f = stepPop fpda
       s = transRead fpda (r, a)
    in catch $ foldl f s ts
 
 steps :: FPDA r p a t -> [a] -> (r, [t]) -> Maybe (r, [t])
-steps fpda as c = foldM (step fpda) c as
+steps fpda as c = foldM (stepRead fpda) c as
 
 accepts :: (Ord r) => FPDA r p a t -> [a] -> Bool
 accepts fpda as =
@@ -63,6 +63,46 @@ accepts fpda as =
    in case steps fpda as c_0 of
         Nothing -> False
         Just (q, _) -> q `Set.member` finalStates fpda
+
+-- | Convert a Functional PDA to a Sipser Deterministic PDA.
+--
+-- We let the states be Q = (R + P) ∪ {q₀}, where q₀ is a designated start state.
+-- From q₀ we put the start symbol Z₀ on the stack, and then move to the
+-- start state of the FPDA, i.e. we define δ(q₀, ε, ε) = (r₀, [Z₀]).
+-- For a read state r, we define
+--   δ(r, ε, a) = (δ_read(r, a), ε)   if δ_read(r, a) is a pop state,
+--              =  δ_read(r, a)       otherwise.
+-- For a pop state p, we define
+--   δ(p, t, ε) = (δ_pop(p, t), ε)    if δ_pop(p, t) is a pop state,
+--              =  δ_pop(p, t)        otherwise.
+-- We leave δ undefined for all other inputs.
+toSipserDPDA :: (Ord r, Ord p) => FPDA r p a t -> SipserDPDA (Maybe (Either r p)) a t
+toSipserDPDA fpda =
+  SipserDPDA
+    { SDPDA.startState = _startState,
+      SDPDA.finalStates = _finalStates,
+      SDPDA.trans = _trans
+    }
+  where
+    -- Mark a state as a read state
+    readState = Just . Left
+    _startState = Nothing
+    _finalStates = Set.map readState (finalStates fpda)
+    _trans = \case
+      (Nothing, Nothing, Nothing) ->
+        let q = readState $ startState fpda
+            t = startSymbol fpda
+         in Just (q, [t])
+      (Just (Left r), Nothing, Just a) ->
+        let (q, ts) = collect $ transRead fpda (r, a)
+         in Just (Just q, ts)
+      (Just (Right p), Just t, Nothing) ->
+        let (q, ts) = collect $ transPop fpda (p, t)
+         in Just (Just q, ts)
+      (_, _, _) -> Nothing
+    collect :: Either (r, [t]) p -> (Either r p, [t])
+    collect (Left (r, ts)) = (Left r, ts)
+    collect (Right p) = (Right p, [])
 
 -- | Convert a Sipser DPDA to a Functional PDA.
 --
@@ -214,45 +254,6 @@ fromSipserDPDA pda =
     arbitraryStackSymbol = head universeF
     -- Is the intersections of `xs` and `ys` non-empty?
     intersects xs ys = not $ xs `Set.disjoint` ys
-
--- | Convert a Functional PDA to a Sipser Deterministic PDA.
---
--- We let the states be Q = (R + P) ∪ {q₀}, where q₀ is a designated start state.
--- From q₀ we put the start symbol Z₀ on the stack, and then move to the
--- start state of the FPDA, i.e. we define δ(q₀, ε, ε) = (r₀, [Z₀]).
--- For a read state r, we define δ(r, ε, a) = (δ_read(r, a), ε).
--- For a pop state p, we define
--- δ(p, t, ε) = (δ_pop(p, t), [])     if δ_pop(p, t) is a pop state,
---            =  δ_pop(p, t)          otherwise
--- We leave δ undefined for all other inputs.
-toSipserDPDA :: (Ord r, Ord p) => FPDA r p a t -> SipserDPDA (Maybe (Either r p)) a t
-toSipserDPDA fpda =
-  SipserDPDA
-    { SDPDA.startState = _startState,
-      SDPDA.finalStates = _finalStates,
-      SDPDA.trans = _trans
-    }
-  where
-    -- Mark a state as a read state
-    readState = Just . Left
-    _startState = Nothing
-    _finalStates = Set.map readState (finalStates fpda)
-    _trans = \case
-      (Nothing, Nothing, Nothing) ->
-        let q = readState $ startState fpda
-            t = startSymbol fpda
-         in Just (q, [t])
-      (Just (Left r), Nothing, Just a) ->
-        let (q, ts) = case transRead fpda (r, a) of
-              Left (r', ts') -> (Left r', ts')
-              Right p' -> (Right p', [])
-         in Just (Just q, ts)
-      (Just (Right p), Just t, Nothing) ->
-        let (q, ts) = case transPop fpda (p, t) of
-              Left (r', ts') -> (Left r', ts')
-              Right p' -> (Right p', [])
-         in Just (Just q, ts)
-      (_, _, _) -> Nothing
 
 {- Bibliography
  - ~~~~~~~~~~~~

@@ -6,146 +6,64 @@
 module Automata.PushDown.Monadic.List where
 
 import Automata.PushDown.Monadic
-import Automata.PushDown.SipserNPDA (EOISipserNPDA, SipserNPDA (SipserNPDA))
+import Automata.PushDown.SipserNPDA (SipserNPDA (SipserNPDA))
 import qualified Automata.PushDown.SipserNPDA as SNPDA
-import Automata.PushDown.Util
-import Data.Foldable (find)
-import Data.Maybe (maybeToList)
+import Automata.PushDown.Util (Bottomed (..))
+import Control.Applicative (Alternative (empty))
 import qualified Data.Set as Set
+import Data.Universe.Class (Finite (..))
 
-type ListPDA s a t = MonadicPDA [] s a t
+type ListPDA r p a t = MonadicPDA [] r p a t
 
-acceptsAngelig :: (Ord s, Ord a, Ord t) => ListPDA s a t -> [a] -> Bool
+acceptsAngelig :: (Ord r) => ListPDA r p a t -> [a] -> Bool
 acceptsAngelig m w = acceptance $ runMPDA m w
   where
     acceptance = or
 
-acceptsDemonic :: (Ord s, Ord a, Ord t) => ListPDA s a t -> [a] -> Bool
+acceptsDemonic :: (Ord r) => ListPDA r p a t -> [a] -> Bool
 acceptsDemonic m w = acceptance $ runMPDA m w
   where
     acceptance = and
-
--- | Convert a Sipser NPDA to a List PDA.
---
--- Based on 'Automata.PushDown.FPDA.fromSipserDPDA'.
-fromSipserNPDA :: (Ord s, Ord t) => SipserNPDA s a t -> ListPDA s a (Maybe t)
-fromSipserNPDA pda =
-  MonadicPDA
-    { startState = SNPDA.startState pda,
-      startSymbol = Nothing,
-      finalStates = _final,
-      transInput = _transInput,
-      transStack = _transStack
-    }
-  where
-    splitMaybe x = case x of Nothing -> [Nothing]; Just y -> [Nothing, Just y]
-    δ = SNPDA.trans pda
-    _final = SNPDA.finalStates pda
-    _transInput (s, t, a) =
-      let input = (,) <$> splitMaybe t <*> splitMaybe (Just a)
-          cs = (\(t', a') -> (s, t', a')) <$> input
-          cs' = do
-            (c, i) <- zip cs input
-            c' <- Set.toList $ δ c
-            pure (c', i)
-          go c = case c of
-            -- Case 1: δ(s, ε, ε) ≠ ∅.
-            -- We push @t@ and @t'@ to the stack, and consume no input.
-            ((s', t'), (Nothing, Nothing)) -> (s', (Just <$> t') ++ [t], False)
-            -- Case 2: δ(s, t, ε) ≠ ∅.
-            -- We push @t'@ to the stack (implicitly popping @t@), and consume no input.
-            ((s', t'), (Just _, Nothing)) -> (s', Just <$> t', False)
-            -- Case 3: δ(s, ε, a) ≠ ∅.
-            -- We push @t@ and @t'@ to the stack, and consume the input.
-            ((s', t'), (Nothing, Just _)) -> (s', (Just <$> t') ++ [t], True)
-            -- Case 4: δ(s, t, a) ≠ ∅.
-            -- We push @t'@ to the stack (implicitly popping @t@), and consume the input.
-            ((s', t'), (Just _, Just _)) -> (s', Just <$> t', True)
-       in go <$> cs'
-    _transStack (s, t) =
-      let ts = maybeToList t
-          -- We get a list of all configurations reachable
-          -- with no input and only `t` (if present) on the stack.
-          cs = Set.toList (SNPDA.stepE pda [] (s, ts))
-       in case find (`Set.member` _final) (fst <$> cs) of
-            -- If any final state is reachable, we stay in that state,
-            -- which will eventually accept the string once the entire
-            -- remaining stack is read.
-            Just s' -> pure s'
-            -- If no final state is reachable, we filter out
-            -- any configuration with remaining stack symbols, as they are stuck
-            -- (as they have not read more from the stack than they have written).
-            Nothing -> fst <$> filter (null . snd) cs
 
 -- | Convert a List PDA to a Sipser NPDA.
 --
 -- See 'Automata.PushDown.FPDA.toSipserDPDA'
 -- for a description on how it works.
---
--- Technically this does not need the end-of-input marker
--- in the input stream, as it can always make a non-deterministic
--- guess that it has reached the end-of-input.
--- However, it makes it much more slows,
--- and I introduced a bug when I tried to do that,
--- so I'm leaving it like this for now.
-toSipserNPDA ::
-  (Ord s, Ord a, Ord t) =>
-  ListPDA s a t ->
-  EOISipserNPDA (State (s, Ended a)) a (Bottomed t)
+toSipserNPDA :: (Ord r, Ord p, Ord t) => ListPDA r p a t -> SipserNPDA (Maybe (Either r p)) a t
 toSipserNPDA m =
   SipserNPDA
-    { SNPDA.startState = _start,
-      SNPDA.finalStates = _final,
+    { SNPDA.startState = _startState,
+      SNPDA.finalStates = _finalStates,
       SNPDA.trans = _trans
     }
   where
-    δ = transInput m
-    γ = transStack m
-    _start = Start
-    _final = [Final]
+    -- Mark a state as a read state
+    readState = Just . Left
+    _startState = Nothing
+    _finalStates = Set.map readState (finalStates m)
     _trans =
       Set.fromList . \case
-        -- From the starting state, we put the start symbol on the stack,
-        -- and move to the "real" start state, peeking at input symbol 'p'.
-        (Start, Nothing, Just p) ->
-          let s = Middle (startState m, p)
-              t = SSymbol $ startSymbol m
-           in pure (s, [t, Bottom])
-        (Start, _, _) -> []
-        -- In the final state, there is nothing to do so we stay.
-        (Final, Nothing, Nothing) -> pure (Final, [])
-        (Final, _, _) -> []
-        -- This should be treated as being in state 's' and reading 'a'.
-        -- If we consume 'a', then this is undefined,
-        -- as we have nothing further to read.
-        (Middle (s, ISymbol a), Just (SSymbol t), Nothing) -> do
-          (s', t', consume) <- δ (s, t, a)
-          if consume
-            then []
-            else pure (Middle (s', ISymbol a), SSymbol <$> t')
-        -- This should be treated as being in state 's' and reading 'a',
-        -- while peeking at the next input 'p' (which might be the end-of-input marker).
-        -- If we don't consume 'a', then this is undefined
-        -- as we then don't want to immediately read 'p'.
-        (Middle (s, ISymbol a), Just (SSymbol t), Just p) -> do
-          (s', t', consume) <- δ (s, t, a)
-          if not consume
-            then []
-            else pure (Middle (s', p), SSymbol <$> t')
-        -- Here we are trying to pop from a (morally) empty stack,
-        -- and so we are stuck.
-        (Middle (s, ISymbol a), Just Bottom, _) -> pure (Middle (s, ISymbol a), [])
-        (Middle (_, ISymbol _), _, _) -> []
-        -- The '(s, End)' indicates that we have read all input,
-        -- and so we only move on the stack symbols.
-        (Middle (s, End), Just (SSymbol t), Nothing) -> do
-          s' <- γ (s, t)
-          pure (Middle (s', End), [])
-        -- If we have read all input and the stack is empty,
-        -- we check if we are in a final state (of the List PDA).
-        -- If so, we move to the dedicated final state 'Final' (of the SNPDA).
-        -- Otherwise, we want to reject the input, so we stay in this state.
-        (Middle (s, End), Just Bottom, Nothing)
-          | s `Set.member` finalStates m -> pure (Final, [])
-          | otherwise -> pure (Middle (s, End), [])
-        (Middle (_, End), _, _) -> []
+        (Nothing, Nothing, Nothing) ->
+          let q = readState $ startState m
+              t = startSymbol m
+           in pure (q, [t])
+        (Just (Left r), Nothing, Just a) -> do
+          (q, ts) <- collect <$> transRead m (r, a)
+          pure (Just q, ts)
+        (Just (Right p), Just t, Nothing) -> do
+          (q, ts) <- collect <$> transPop m (p, t)
+          pure (Just q, ts)
+        (_, _, _) -> empty
+    collect :: Either (r, [t]) p -> (Either r p, [t])
+    collect (Left (r, ts)) = (Left r, ts)
+    collect (Right p) = (Right p, [])
+
+-- | Convert a Sipser NPDA to a List PDA.
+--
+-- See 'Automata.PushDown.FPDA.fromSipserDPDA'
+-- for a description on how it works.
+fromSipserNPDA ::
+  (Finite s, Finite a, Finite t, Ord s, Eq t) =>
+  SipserNPDA s a t ->
+  ListPDA (Maybe s, Bool) (s, Maybe a, Bool) a (Bottomed t)
+fromSipserNPDA pda = error "TODO: implement"

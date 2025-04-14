@@ -98,44 +98,36 @@ nonpalindromes = mkLangGen (not . isPalindrome)
 {- Creating automata from arbitrary values. -}
 
 mkDFA :: (s, Set s, Fun (s, a) s) -> DFA.DFA a s
-mkDFA (start, final, trans') =
+mkDFA (start, final, trans) =
   DFA.DFA
-    { DFA.trans = trans,
-      DFA.start = start,
-      DFA.final = final
+    { DFA.start = start,
+      DFA.final = final,
+      DFA.trans = applyFun trans
     }
-  where
-    trans = applyFun trans'
 
 mkNFA :: (s, Set s, Fun (s, Maybe a) [s]) -> NFA.NFA a s
-mkNFA (start, final, trans') =
+mkNFA (start, final, trans) =
   NFA.NFA
-    { NFA.trans = trans,
-      NFA.start = start,
-      NFA.final = final
+    { NFA.start = start,
+      NFA.final = final,
+      NFA.trans = applyFun trans
     }
-  where
-    trans = applyFun trans'
 
 mkAFA :: (s, Set s, Fun (s, a, Set s) Bool) -> AFA.AFA a s
-mkAFA (start, final, trans') =
+mkAFA (start, final, trans) =
   AFA.AFA
-    { AFA.trans = trans,
-      AFA.start = start,
-      AFA.final = final
+    { AFA.start = start,
+      AFA.final = final,
+      AFA.trans = uncurry . applyFun3 trans
     }
-  where
-    trans s = uncurry (applyFun3 trans' s)
 
 mkMFA :: (Monad m) => (s, Set s, Fun (s, a) (m s)) -> MFA.MonadicFA a m s
-mkMFA (start, final, trans') =
+mkMFA (start, final, trans) =
   MFA.MonadicFA
-    { MFA.trans = trans,
-      MFA.start = start,
-      MFA.final = final
+    { MFA.start = start,
+      MFA.final = final,
+      MFA.trans = applyFun trans
     }
-  where
-    trans = applyFun trans'
 
 -- Here we can't just generate any transition function,
 -- as we need to ensure the condition that exactly one of
@@ -165,14 +157,12 @@ mkSipserDPDA (startStates, finalStates, select', trans') =
 mkSipserNPDA ::
   (s, Set s, Fun (s, Maybe t, Maybe a) (Set (s, [t]))) ->
   SNPDA.SipserNPDA s a t
-mkSipserNPDA (startState, finalStates, trans') =
+mkSipserNPDA (startState, finalStates, trans) =
   SNPDA.SipserNPDA
     { SNPDA.startState = startState,
       SNPDA.finalStates = finalStates,
-      SNPDA.trans = trans
+      SNPDA.trans = applyFun trans
     }
-  where
-    trans = applyFun trans'
 
 mkFPDA ::
   ( t,
@@ -182,17 +172,14 @@ mkFPDA ::
     Fun (p, t) (Either (r, [t]) p)
   ) ->
   FPDA.FPDA r p a t
-mkFPDA (startSymbol, startState, finalStates, transRead', transPop') =
+mkFPDA (startSymbol, startState, finalStates, transRead, transPop) =
   FPDA.FPDA
     { FPDA.startSymbol = startSymbol,
       FPDA.startState = startState,
       FPDA.finalStates = finalStates,
-      FPDA.transRead = transRead,
-      FPDA.transPop = transPop
+      FPDA.transRead = applyFun transRead,
+      FPDA.transPop = applyFun transPop
     }
-  where
-    transRead = applyFun transRead'
-    transPop = applyFun transPop'
 
 -- | Make a monadic PDA.
 --
@@ -201,18 +188,20 @@ mkFPDA (startSymbol, startState, finalStates, transRead', transPop') =
 -- e.g. for the List monad it could be 'nubOrd'.
 -- If no shrinking is needed, just pass 'id'.
 mkMPDA ::
-  (Monad m, Ord s, Ord t) =>
-  (forall x. (Ord x) => m x -> m x) ->
-  (t, s, Set s, Fun (s, t, a) (m (s, [t], Bool)), Fun (s, t) (m s)) ->
-  MPDA.MonadicPDA m s a t
-mkMPDA shrink (startSymbol, startState, finalStates, δ', γ') =
+  (Monad m) =>
+  (m (Either (r, [t]) p) -> m (Either (r, [t]) p)) ->
+  ( t,
+    r,
+    Set r,
+    Fun (r, a) (m (Either (r, [t]) p)),
+    Fun (p, t) (m (Either (r, [t]) p))
+  ) ->
+  MPDA.MonadicPDA m r p a t
+mkMPDA shrink (startSymbol, startState, finalStates, transRead, transPop) =
   MPDA.MonadicPDA
     { MPDA.startSymbol = startSymbol,
       MPDA.startState = startState,
       MPDA.finalStates = finalStates,
-      MPDA.transInput = δ,
-      MPDA.transStack = γ
+      MPDA.transRead = shrink . applyFun transRead,
+      MPDA.transPop = shrink . applyFun transPop
     }
-  where
-    δ = shrink . applyFun δ'
-    γ = shrink . applyFun γ'

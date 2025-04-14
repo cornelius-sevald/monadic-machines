@@ -55,6 +55,17 @@ unIth = succ . fromIntegral . fromEnum
 pattern Ith :: Nat -> NAry n
 pattern Ith i <- Ith# i
 
+-- | This is only for the 'fromInteger' function,
+-- which will let us write n-ary types as integer literals
+-- (however unsafe that might be).
+instance (KnownNat n) => Num (NAry n) where
+  fromInteger = ith
+  abs = id
+  signum n = case n of (Ith# 0) -> 0; (Ith# _) -> 1
+  (+) = undefined
+  (*) = undefined
+  negate = undefined
+
 instance (KnownNat n) => Universe (NAry n) where
   universe = ith <$> [1 .. n']
     where
