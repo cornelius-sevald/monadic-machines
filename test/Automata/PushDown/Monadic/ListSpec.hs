@@ -91,7 +91,8 @@ spec = do
       context "For a random Sipser NPDA" $
         -- We have to reduce the size a crazy amount,
         -- but otherwise it runs for ages.
-        modifyMaxSize (const 2) $ do
+        -- Even at this measly size, it has caught a few bugs.
+        modifyMaxSize (const 3) $ do
           prop "recognizes the same language" $ do
             \sdpda' w ->
               let snpda = mkSipserNPDA sdpda' :: SNPDA.SipserNPDA S A T
