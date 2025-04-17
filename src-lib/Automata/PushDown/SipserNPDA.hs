@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Sipser Non-deterministic Pushdown Automata.
 module Automata.PushDown.SipserNPDA where
@@ -75,6 +76,38 @@ stepE pda seen c@(s, ts) =
         then seen'
         -- Otherwise we recursively step from the new configurations.
         else Set.foldl (stepE pda) seen' new
+
+-- | Version of 'stepE' which also keeps tracks if a final
+-- state was reached on the path to each configuration.
+stepE' ::
+  (Ord s, Ord t) =>
+  -- | The PDA.
+  SipserNPDA s a t ->
+  -- | A set of state/stack configurations we have previously seen.
+  Set ((s, [t]), Bool) ->
+  -- | The current state/stack configuration.
+  ((s, [t]), Bool) ->
+  -- | A set of new configurations.
+  Set ((s, [t]), Bool)
+stepE' pda seen ((s, ts), b) =
+  let isFinal = s `Set.member` finalStates pda
+      b' = b || isFinal
+      seen' = Set.insert ((s, ts), b') seen
+      -- We step with no input,
+      -- yielding a set of successor configurations.
+      cs' = stepStack pda s ts Nothing
+      -- We filter out the already-seen configurations
+      -- (or at least those similar enough),
+      -- leaving only new configurations.
+      new = Set.filter (isNothing . dejavu (Set.map fst seen')) cs'
+   in if null new
+        -- If there are no new successor configurations,
+        -- then we return the seen configurations.
+        then seen'
+        -- Otherwise we recursively step from the new configurations.
+        else
+          let rec = Set.unions $ Set.map (stepE' pda seen') (Set.map (,b') new)
+           in Set.union rec seen'
 
 -- | Perform a step on a single input symbol.
 step :: (Ord s, Ord t) => SipserNPDA s a t -> a -> (s, [t]) -> Set (s, [t])

@@ -10,7 +10,6 @@ import qualified Automata.PushDown.SipserDPDA as SDPDA
 import qualified Automata.PushDown.SipserDPDASpec as SDPDASpec
 import Automata.PushDown.Util (Bottomed)
 import Data.Alphabet
-import Data.NAry (NAry)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util

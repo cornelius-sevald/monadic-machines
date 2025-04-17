@@ -45,5 +45,5 @@ toSipserDPDA = FPDA.toSipserDPDA . toFPDA
 fromSipserDPDA ::
   (Finite s, Finite a, Finite t, Ord s, Eq t) =>
   SipserDPDA s a t ->
-  IdentityPDA (Maybe s, Bool) (s, Maybe a, Bool) a (Bottomed t)
+  IdentityPDA (FPDA.ReadState s, Bool) (FPDA.PopState s a, Bool) a (Bottomed t)
 fromSipserDPDA = fromFPDA . FPDA.fromSipserDPDA

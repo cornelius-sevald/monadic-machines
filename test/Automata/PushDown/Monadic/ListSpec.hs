@@ -56,6 +56,7 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+    -- TODO: Move this to a dedicated `invert` test case.
     context "With L = {w | w is not a palindrome}" $ do
       let (lang, langComp) = (nonpalindromes, palindromes)
       let pda = invert pdaPalindromes
@@ -63,38 +64,39 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
-  xdescribe "fromSipserNPDA" $ do
-    context "With an endlessly looping Sipser NPDA" $ do
-      let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaLoop
-      it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
-      prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` ListPDA.acceptsAngelig pda
-      prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
-    context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = ListPDA.fromSipserNPDA SNPDASpec.npdakOkI
-      prop "accepts strings in L" $ do
-        (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-      prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-    context "For a NPDA recognizing L = {w | w is a palindrome}" $ do
-      let (lang, langComp) = (palindromes, nonpalindromes)
-      let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaPalindromes
-      prop "accepts strings in L" $ do
-        (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-      prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-    context "For a random Sipser NPDA" $
-      -- We have to reduce the size a crazy amount,
-      -- but otherwise it runs for ages.
-      modifyMaxSize (`div` 35) $ do
-        prop "recognizes the same language" $ do
-          \sdpda' w ->
-            let snpda = mkSipserNPDA sdpda' :: SNPDA.SipserNPDA S A T
-                m = ListPDA.fromSipserNPDA snpda
-             in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
+  describe "fromSipserNPDA" $
+    modifyMaxSize (`div` 10) $ do
+      context "With an endlessly looping Sipser NPDA" $ do
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaLoop
+        it "rejects the empty string" $ do
+          [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+        prop "accepts all strings of length 1" $
+          \n -> [n] `shouldSatisfy` ListPDA.acceptsAngelig pda
+        prop "rejects all strings of length >1" $
+          \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+      context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
+        let (lang, langComp) = (kOkI, nonkOkI)
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdakOkI
+        prop "accepts strings in L" $ do
+          (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+        prop "rejects strings not in L" $ do
+          (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+      context "For a NPDA recognizing L = {w | w is a palindrome}" $ do
+        let (lang, langComp) = (palindromes, nonpalindromes)
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaPalindromes
+        prop "accepts strings in L" $ do
+          (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+        prop "rejects strings not in L" $ do
+          (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+      context "For a random Sipser NPDA" $
+        -- We have to reduce the size a crazy amount,
+        -- but otherwise it runs for ages.
+        modifyMaxSize (const 2) $ do
+          prop "recognizes the same language" $ do
+            \sdpda' w ->
+              let snpda = mkSipserNPDA sdpda' :: SNPDA.SipserNPDA S A T
+                  m = ListPDA.fromSipserNPDA snpda
+               in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
   describe "toSipserNPDA" $ do
     context "For a List PDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (kOkI, nonkOkI)
