@@ -1,7 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 -- TODO: Test the implementation of the acceptance function.
 -- TODO: Add functions for converting to- and from NFAs (and maybe also DFAs).
 module Automata.FiniteState.AFA
@@ -11,17 +7,17 @@ module Automata.FiniteState.AFA
     fromDFA,
     fromNFA,
     toNFA,
+    toDFA,
   )
 where
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Universe.Class (Finite (universeF))
 import Automata.FiniteState.DFA (DFA)
 import qualified Automata.FiniteState.DFA as DFA
 import Automata.FiniteState.NFA (NFA)
 import qualified Automata.FiniteState.NFA as NFA
-import GHC.Generics (Generic)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Universe.Class (Finite (universeF))
 
 -- | Compute the corresponding set of an indicator function.
 indicate :: (Ord a, Finite a) => (a -> Bool) -> Set a
@@ -48,24 +44,24 @@ data AFA a s = AFA
     -- | The transition function g.
     trans :: s -> (a, Set s) -> Bool
   }
-  deriving (Generic)
+
+-- | The inductive "inside out" transitive step function defined @H𞁨@ defined in [1].
+_H :: (Finite s, Ord s) => AFA a s -> s -> [a] -> Set s -> Bool
+_H _ q [] u = q `Set.member` u
+_H afa q (a : x) u =
+  let g' = trans afa q
+      u' = indicate (\q' -> _H afa q' x u)
+   in g' (a, u')
 
 -- | The transition function extended to a mapping of
 -- Q into the set of all mappings of Σ* × P(Q) into {0, 1}.
---
--- Adapdet from [2].
-steps :: (Show s, Ord s, Finite s) => AFA a s -> s -> ([a], Set s) -> Bool
-steps afa q (w, u) = case w of
-  [] -> q `Set.member` u
-  (a : v) -> gq (a, indicate $ g (v, u))
-  where
-    gq = trans afa q
-    g (x, r) u' = steps afa u' (x, r)
+steps :: (Ord s, Finite s) => AFA a s -> s -> ([a], Set s) -> Bool
+steps afa q (w, u) = _H afa q w u
 
 -- | Does the AFA accept the input string @xs@?
 --
 -- TODO: Test that this works with some examples.
-accepts :: (Show s, Ord s, Finite s) => AFA a s -> [a] -> Bool
+accepts :: (Ord s, Finite s) => AFA a s -> [a] -> Bool
 accepts m w = steps m (start m) (w, indicate f)
   where
     f q = q `Set.member` final m
@@ -98,7 +94,7 @@ accepts m w = steps m (start m) (w, indicate f)
 --   δ(u,   ε) = ∅
 --   δ(q_0, a) = ∅
 --   δ(q_0, ε) = S
-toNFA :: (Show s, Ord s, Finite s) => AFA a s -> NFA a (Maybe (Set s))
+toNFA :: (Ord s, Finite s) => AFA a s -> NFA a (Maybe (Set s))
 toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
   where
     -- The set of starting states of the NNFA.
@@ -116,6 +112,20 @@ toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
     _trans (Nothing, Nothing) = starts
     _trans _ = []
 
+-- | From an n-state AFA (Q, Σ, g, q_1, F) construct an equivalent 2^(2^n)-state DFA.
+--
+-- The construction is essentailly the composition of converting an AFA to an NNFA,
+-- and converting an NNFA to a DFA.
+toDFA :: (Finite s, Ord s) => AFA a s -> DFA a (Set (Set s))
+toDFA afa = DFA.DFA {DFA.trans = _trans, DFA.start = _start, DFA.final = _final}
+  where
+    _start = Set.fromList [u | u <- universeF, start afa `Set.member` u]
+    _final = Set.fromList [u | u <- universeF, final afa `Set.member` u]
+    _trans (us, a) =
+      let g' x q = trans afa q x
+          d u = Set.fromList [u' | u' <- universeF, indicate (g' (a, u')) == u]
+       in Set.unions $ Set.map d us
+
 -- | Convert an NFA M = (Q, Σ, δ, s_1, F)
 -- to an equivalent AFA (Q, Σ, g, s_1, F'),
 -- where g is defined as follows:
@@ -127,7 +137,7 @@ toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
 -- the set of states from which F is reachable while consuming no input.
 --
 -- Adapted from [2].
-fromNFA :: (Show s, Ord s, Finite s) => NFA a s -> AFA a s
+fromNFA :: (Ord s, Finite s) => NFA a s -> AFA a s
 fromNFA nfa = AFA {start = _start, final = _final, trans = _trans}
   where
     _start = NFA.start nfa
@@ -139,7 +149,7 @@ fromNFA nfa = AFA {start = _start, final = _final, trans = _trans}
 -- | Convert a DFA (Q, Σ, δ, s_1, F) to an equivalent AFA (Q, Σ, g, s_1, F).
 -- This is implemented similarly to `fromNFA`,
 -- simply treating the DFA as an NFA which always has only one possible next state.
-fromDFA :: (Show s, Ord s) => DFA a s -> AFA a s
+fromDFA :: (Ord s) => DFA a s -> AFA a s
 fromDFA dfa = AFA {start = _start, final = _final, trans = _trans}
   where
     _start = DFA.start dfa
