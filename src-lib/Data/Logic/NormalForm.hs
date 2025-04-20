@@ -5,20 +5,48 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 -- | Datatypes and functions for boolean formulae in
--- Conjunctive Normal Form (CNF) and Disjunctive Normal Form.
---
--- NOTE: We only consider *positive* boolean formulae,
--- i.e. those with no negation.
+-- Conjunctive Normal Form (CNF) and Disjunctive Normal Form (DNF).
 module Data.Logic.NormalForm where
 
 import Control.Applicative
-import Control.Monad (MonadPlus, join)
+import Data.OrdFunctor
+import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.Generics (Generic)
 import GHC.IsList
-import Test.QuickCheck (Arbitrary)
+import Test.QuickCheck (Arbitrary (..), genericShrink)
 
-newtype Conjunction a = Conj {getConj :: [a]}
+data Literal a = Variable a | Negation a
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
+
+evalLit :: Literal Bool -> Bool
+evalLit (Variable x) = x
+evalLit (Negation x) = not x
+
+instance Applicative Literal where
+  pure = Variable
+  liftA2 f a b =
+    case (a, b) of
+      (Variable x, Variable y) -> Variable (f x y)
+      (Variable x, Negation y) -> Negation (f x y)
+      (Negation x, Variable y) -> Negation (f x y)
+      (Negation x, Negation y) -> Variable (f x y)
+
+instance Monad Literal where
+  m >>= f = case m of
+    (Variable x) -> f x
+    (Negation x) -> case f x of
+      Variable y -> Negation y
+      Negation y -> Variable y
+
+instance (Arbitrary a) => Arbitrary (Literal a) where
+  arbitrary = do
+    isVar <- arbitrary
+    x <- arbitrary
+    pure $ if isVar then Variable x else Negation x
+  shrink = genericShrink
+
+newtype Conjunction a = Conj {getConj :: Set a}
   deriving
     ( Show,
       Eq,
@@ -26,12 +54,7 @@ newtype Conjunction a = Conj {getConj :: [a]}
       Semigroup,
       Monoid,
       Foldable,
-      Traversable,
-      Functor,
-      Applicative,
-      Alternative,
-      Monad,
-      MonadPlus,
+      OrdFunctor,
       Arbitrary,
       Generic
     )
@@ -39,16 +62,12 @@ newtype Conjunction a = Conj {getConj :: [a]}
 evalConj :: Conjunction Bool -> Bool
 evalConj = and . getConj
 
-nullConj :: Conjunction a -> Bool
-nullConj (Conj []) = True
-nullConj _ = False
-
-instance IsList (Conjunction a) where
+instance (Ord a) => IsList (Conjunction a) where
   type Item (Conjunction a) = a
-  fromList = Conj
-  toList = getConj
+  fromList = Conj . Set.fromList
+  toList = Set.toList . getConj
 
-newtype Disjunction a = Disj {getDisj :: [a]}
+newtype Disjunction a = Disj {getDisj :: Set a}
   deriving
     ( Show,
       Eq,
@@ -56,12 +75,7 @@ newtype Disjunction a = Disj {getDisj :: [a]}
       Semigroup,
       Monoid,
       Foldable,
-      Traversable,
-      Functor,
-      Applicative,
-      Alternative,
-      Monad,
-      MonadPlus,
+      OrdFunctor,
       Arbitrary,
       Generic
     )
@@ -69,26 +83,22 @@ newtype Disjunction a = Disj {getDisj :: [a]}
 evalDisj :: Disjunction Bool -> Bool
 evalDisj = or . getDisj
 
-nullDisj :: Disjunction a -> Bool
-nullDisj (Disj []) = True
-nullDisj _ = False
-
-instance IsList (Disjunction a) where
+instance (Ord a) => IsList (Disjunction a) where
   type Item (Disjunction a) = a
-  fromList = Disj
-  toList = getDisj
+  fromList = Disj . Set.fromList
+  toList = Set.toList . getDisj
 
 {- The CNF type -}
 
--- | The type of positive Conjunctive Normal Form boolean formulas.
-newtype CNF a = CNF {getCNF :: Conjunction (Disjunction a)}
+-- | Conjunctive Normal Form boolean formulas.
+newtype CNF a = CNF {getCNF :: Conjunction (Disjunction (Literal a))}
   deriving
     ( Show,
+      Eq,
+      Ord,
       Semigroup,
       Monoid,
       Foldable,
-      Traversable,
-      Functor,
       Arbitrary,
       Generic
     )
@@ -96,76 +106,41 @@ newtype CNF a = CNF {getCNF :: Conjunction (Disjunction a)}
 {- CNF functions -}
 
 evalCNF :: CNF Bool -> Bool
-evalCNF (CNF p) = evalConj $ evalDisj <$> p
+evalCNF (CNF p) = evalConj $ ordFmap (evalDisj . ordFmap evalLit) p
 
-toDNF :: CNF a -> DNF a
+toDNF :: (Ord a) => CNF a -> DNF a
 toDNF = fromList . choices . toList
+
+negateCNF :: (Ord a) => CNF a -> CNF a
+negateCNF cnf =
+  let dnf = DNF $ ordFmap (disjToConj . ordFmap flipLit) $ conjToDisj $ getCNF cnf
+   in toCNF dnf
+  where
+    flipLit a = case a of Variable x -> Negation x; Negation x -> Variable x
+    conjToDisj = Disj . getConj
+    disjToConj = Conj . getDisj
 
 {- CNF instances -}
 
--- | We cheat by making equality convert the
--- conjunctions and disjunctions to sets before comparing.
-instance (Ord a) => Eq (CNF a) where
-  p == q = toSet p == toSet q
-    where
-      toSet = Set.fromList . (Set.fromList <$>) . toList
+instance OrdFunctor CNF where
+  ordFmap f (CNF cnf) = CNF $ (ordFmap . ordFmap . fmap) f cnf
 
--- | We cheat by making comparison convert the
--- conjunctions and disjunctions to sets before comparing.
-instance (Ord a) => Ord (CNF a) where
-  compare p q = compare (toSet p) (toSet q)
-    where
-      toSet = Set.fromList . (Set.fromList <$>) . toList
-
-instance IsList (CNF a) where
-  type Item (CNF a) = [a]
-  fromList = CNF . Conj . (Disj <$>)
-  toList = (getDisj <$>) . getConj . getCNF
-
-instance Applicative CNF where
-  pure x = CNF (Conj [Disj [x]])
-  liftA2 f p q =
-    let p' = toList p
-        q' = toList q
-        gs = (fmap . fmap) f p'
-     in fromList [g <*> y | g <- gs, y <- q']
-
--- | NOTE: This instance somewhat doesn't respect the associativity law of monads,
--- as some of the inner lists might have a different order.
--- However, due to the fact that the `Eq` instance first sorts before comparing
--- it technically still respects the law.
---
--- Why not just make it actually associative?
--- I can't figure out how.
-instance Monad CNF where
-  p >>= f =
-    let ys = (fmap . fmap) (toList . f) (toList p)
-        zs = concatMap (fmap concat . choices) ys
-     in fromList zs
-
-{-
--- | NOTE: This does not work.
-instance Monad CNF where
-  return = pure
-  m >>= k =
-    let cnf_cnf = k <$> m
-        cnf_dnf = toDNF <$> cnf_cnf
-        conj_dnf = DNF . join <$> getCNF (getDNF <$> cnf_dnf)
-        conj_cnf = toCNF <$> conj_dnf
-     in CNF (getCNF =<< conj_cnf)
--}
+instance (Ord a) => IsList (CNF a) where
+  type Item (CNF a) = [Literal a]
+  fromList = CNF . fromList . (fromList <$>)
+  toList = (toList <$>) . toList . getCNF
 
 {- The DNF type -}
 
--- | The type of positive Conjunctive Normal Form boolean formulas.
-newtype DNF a = DNF {getDNF :: Disjunction (Conjunction a)}
+-- | Disjunctive Normal Form boolean formulas.
+newtype DNF a = DNF {getDNF :: Disjunction (Conjunction (Literal a))}
   deriving
     ( Show,
+      Eq,
+      Ord,
       Semigroup,
       Monoid,
       Foldable,
-      Traversable,
-      Functor,
       Arbitrary,
       Generic
     )
@@ -173,63 +148,29 @@ newtype DNF a = DNF {getDNF :: Disjunction (Conjunction a)}
 {- DNF functions -}
 
 evalDNF :: DNF Bool -> Bool
-evalDNF (DNF p) = evalDisj $ evalConj <$> p
+evalDNF (DNF p) = evalDisj $ ordFmap (evalConj . ordFmap evalLit) p
 
-toCNF :: DNF a -> CNF a
+toCNF :: (Ord a) => DNF a -> CNF a
 toCNF = fromList . choices . toList
+
+negateDNF :: (Ord a) => DNF a -> DNF a
+negateDNF dnf =
+  let cnf = CNF $ ordFmap (conjToDisj . ordFmap flipLit) $ disjToConj $ getDNF dnf
+   in toDNF cnf
+  where
+    flipLit a = case a of Variable x -> Negation x; Negation x -> Variable x
+    conjToDisj = Disj . getConj
+    disjToConj = Conj . getDisj
 
 {- DNF instances -}
 
--- | We cheat by making equality convert the
--- disjunction and conjunction to sets before comparing.
-instance (Ord a) => Eq (DNF a) where
-  p == q = toSet p == toSet q
-    where
-      toSet = Set.fromList . (Set.fromList <$>) . toList
+instance OrdFunctor DNF where
+  ordFmap f (DNF dnf) = DNF $ (ordFmap . ordFmap . fmap) f dnf
 
--- | We cheat by making comparison convert the
--- disjunctions and conjunctions to sets before comparing.
-instance (Ord a) => Ord (DNF a) where
-  compare p q = compare (toSet p) (toSet q)
-    where
-      toSet = Set.fromList . (Set.fromList <$>) . toList
-
-instance IsList (DNF a) where
-  type Item (DNF a) = [a]
-  fromList = DNF . Disj . (Conj <$>)
-  toList = (getConj <$>) . getDisj . getDNF
-
-instance Applicative DNF where
-  pure x = DNF (Disj [Conj [x]])
-  liftA2 f p q =
-    let p' = toList p
-        q' = toList q
-        gs = (fmap . fmap) f p'
-     in fromList [g <*> y | g <- gs, y <- q']
-
--- | NOTE: This instance somewhat doesn't respect the associativity law of monads,
--- as some of the inner lists might have a different order.
--- However, due to the fact that the `Eq` instance first sorts before comparing
--- it technically still respects the law.
---
--- Why not just make it actually associative?
--- I can't figure out how.
-instance Monad DNF where
-  p >>= f =
-    let ys = (fmap . fmap) (toList . f) (toList p)
-        zs = concatMap (fmap concat . choices) ys
-     in fromList zs
-
-{-
-instance Monad DNF where
-  return = pure
-  m >>= k =
-    let dnf_dnf = k <$> m
-        dnf_cnf = toCNF <$> dnf_dnf
-        conj_cnf = CNF . join <$> getDNF (getCNF <$> dnf_cnf)
-        conj_dnf = toDNF <$> conj_cnf
-     in DNF (getDNF =<< conj_dnf)
--}
+instance (Ord a) => IsList (DNF a) where
+  type Item (DNF a) = [Literal a]
+  fromList = DNF . fromList . (fromList <$>)
+  toList = (toList <$>) . toList . getDNF
 
 {- Helper functions -}
 

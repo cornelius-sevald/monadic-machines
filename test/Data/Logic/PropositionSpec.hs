@@ -12,6 +12,7 @@
 module Data.Logic.PropositionSpec where
 
 import Data.Functor.Identity (Identity (Identity))
+import qualified Data.Logic.NormalForm as NF
 import Data.Logic.Proposition
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -30,6 +31,18 @@ typ = id
 
 spec :: Spec
 spec = do
+  describe "fromCNF" $ do
+    prop "preserves the truth value" $ do
+      \cnf -> evaluate id (fromCNF cnf) `shouldBe` NF.evalCNF cnf
+  describe "fromDNF" $ do
+    prop "preserves the truth value" $ do
+      \dnf -> evaluate id (fromDNF dnf) `shouldBe` NF.evalDNF dnf
+  describe "toCNF" $ do
+    prop "preserves the truth value" $ do
+      \p -> NF.evalCNF (toCNF p) `shouldBe` evaluate id p
+  describe "toDNF" $ do
+    prop "preserves the truth value" $ do
+      \p -> NF.evalDNF (toDNF p) `shouldBe` evaluate id p
   describe "Functor instance" $ do
     prop "identity" $ do
       \x -> fmap id x `shouldBe` typ x

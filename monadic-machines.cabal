@@ -62,6 +62,7 @@ library
         MyLib
         Data.NAry
         Data.Heart
+        Data.OrdFunctor
         Data.Alphabet
         Data.ListList
         Data.Logic.NormalForm
