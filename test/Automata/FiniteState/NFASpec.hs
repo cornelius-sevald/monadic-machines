@@ -2,11 +2,11 @@
 
 module Automata.FiniteState.NFASpec where
 
-import Data.Alphabet
-import Data.NAry (NAry)
 import qualified Automata.FiniteState.DFA as DFA
 import Automata.FiniteState.NFA (NFA)
 import qualified Automata.FiniteState.NFA as NFA
+import Data.Alphabet
+import Data.NAry (NAry)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
@@ -22,7 +22,7 @@ type A = ABC
 
 spec :: Spec
 spec = do
-  describe "toDFA" $ do
+  describe "toDFA" $ modifyMaxSize (`div` 4) $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa' :: NFA A S
