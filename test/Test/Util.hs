@@ -19,6 +19,7 @@ import Data.List (uncons)
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.NAry
 import Data.Set (Set)
+import Data.Universe.Class (Finite (..))
 import Test.QuickCheck hiding (shrink)
 
 {- Utility functions -}
@@ -113,13 +114,15 @@ mkNFA (start, final, trans) =
       NFA.trans = applyFun trans
     }
 
-mkAFA :: (s, Set s, Fun (s, a, Set s) Bool) -> AFA.AFA a s
-mkAFA (start, final, trans) =
+mkAFA :: (Finite s, Ord s) => (s, Set s, Fun (s, a, Set s) Bool) -> AFA.AFA a s
+mkAFA (start, final, trans') =
   AFA.AFA
     { AFA.start = start,
       AFA.final = final,
-      AFA.trans = uncurry . applyFun3 trans
+      AFA.trans = trans
     }
+  where
+    trans (q, a) u = applyFun3 trans' q a (AFA.indicate u)
 
 mkMFA :: (Monad m) => (s, Set s, Fun (s, a) (m s)) -> MFA.MonadicFA a m s
 mkMFA (start, final, trans) =
