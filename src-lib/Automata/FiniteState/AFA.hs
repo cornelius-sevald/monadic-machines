@@ -1,5 +1,3 @@
--- TODO: Test the implementation of the acceptance function.
--- TODO: Add functions for converting to- and from NFAs (and maybe also DFAs).
 module Automata.FiniteState.AFA
   ( AFA (..),
     indicate,

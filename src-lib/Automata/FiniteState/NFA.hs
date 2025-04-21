@@ -5,12 +5,12 @@
 -- | Non-deterministic finite automata
 module Automata.FiniteState.NFA (NFA (..), accepts, stepE, step, prefinal, fromDFA, toDFA) where
 
+import Automata.FiniteState.DFA (DFA)
+import qualified Automata.FiniteState.DFA as DFA
 import Data.Foldable (foldl')
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
-import Automata.FiniteState.DFA (DFA)
-import qualified Automata.FiniteState.DFA as DFA
 import GHC.Generics (Generic)
 
 -- | A non-deterministic finite automaton is a 5-tuple
@@ -53,7 +53,6 @@ step nfa q x =
     step1 r = trans nfa (r, Just x)
 
 -- | Does the NFA accept the input string @xs@?
--- TODO: Test that this works.
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
 accepts nfa xs = any (`Set.member` final nfa) r_n
   where

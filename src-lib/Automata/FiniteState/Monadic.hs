@@ -12,17 +12,14 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 -- | A Monadic Finite Automaton is a generalization of finite state machines,
--- and is defined by an 8-tuple
---  ($M, Q, \Sigma, \delta_q, \delta_r, q_0, F$), where
+-- and is defined by an 7-tuple (M, Q, Σ, δ, q_0, F), where
 --
---    1. $M$ is a monad,
---    2. $Q$ is a finite set called the *active states*,
---    4. $\Sigma$ is a finite set called the *alphabet*,
---    5. $\delta : Q \times \Sigma \rightarrow M(Q)$ is the *monadic transition function*,
---    7. $q_0 \in Q$ is the *start state*, and
---    8. $F \subseteq Q$ is the *set of final states*.
---
--- TODO: Update this description, it's outdated.
+--    1. M is a monad,
+--    2. Q is a finite set called the *states*,
+--    3. Σ is a finite set called the *alphabet*,
+--    4. δ : Q × Σ → M(Q) is the *monadic transition function*,
+--    6. q_0 ∈ Q is the *start state*, and
+--    7. F ⊆ Q is the *set of final states*.
 data MonadicFA a m s = MonadicFA
   { -- | The start state $q_0$.
     start :: s,

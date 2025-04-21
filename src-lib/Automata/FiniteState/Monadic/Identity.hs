@@ -15,7 +15,6 @@ import Data.Functor.Identity
 
 type IdentityFA a s = MonadicFA a Identity s
 
--- | TODO: Test that this works.
 fromDFA :: DFA a s -> IdentityFA a s
 fromDFA dfa = MonadicFA {start = _start, final = _final, trans = _trans}
   where
@@ -23,7 +22,6 @@ fromDFA dfa = MonadicFA {start = _start, final = _final, trans = _trans}
     _final = DFA.final dfa
     _trans = pure . DFA.trans dfa
 
--- | TODO: Test that this works.
 toDFA :: IdentityFA a s -> DFA a s
 toDFA m = DFA {DFA.start = _start, DFA.final = _final, DFA.trans = _trans}
   where

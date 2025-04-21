@@ -1,6 +1,30 @@
 -- | Monadic automaton with the `ListList` (double-nested list) monad.
--- Equivalent to an alternating finite automaton,
--- with DNF acceptance.
+--
+-- Almost equivalent to an alternating finite automaton,
+-- except that the AFA can also negation,
+-- whereas the ListFA may only simulate a positive DNF (or CNF).
+--
+-- This could be remedies by interpreting the list-of-lists as a
+-- "complete" DNF, wherein every element that is not present
+-- in a conjunction is implicitly assumed to be negated,
+-- e.g. the list-of-lists
+--
+--   [[X, Y], [X], []]
+--
+-- would correspond to the DNF
+--
+--   (X ∧ Y ∧ ¬Z) ∨ (X ∧ ¬Y ∧ ¬Z) ∨ (¬X ∧ ¬Y ∧ ¬Z)
+--
+-- with the states Q = {x, y, z}.
+-- The problem with this is that 'runMFA' returns a list-of-list of Boolean values,
+-- and so we loose the concrete information about which states we reached
+-- when determining acceptance.
+-- In the example above, we would not be able to determine if Z were final,
+-- which clearly we need to do to evaluate the "complete" DNF.
+--
+-- Therefore, I have opted for this weaker version of the list-of-lists monad,
+-- rather than re-structuring how 'runMFA' and monadic acceptance functions work.
+-- For the full power of Boolean formulae, see 'Automata.FiniteState.Monadic.Proposition'.
 module Automata.FiniteState.Monadic.ListList
   ( ListListFA,
     fromAFA,
