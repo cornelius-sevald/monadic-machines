@@ -4,20 +4,20 @@ module Automata.FiniteState.Monadic.List
   ( ListFA,
     fromNFA,
     toNFA,
-    accepts,
+    acceptsAngelic,
+    acceptsDemonic,
   )
 where
 
-import Control.Applicative (Alternative (empty))
-import qualified Data.Set as Set
-import Data.Universe.Class (Finite)
 import Automata.FiniteState.Monadic
 import Automata.FiniteState.NFA (NFA (NFA))
 import qualified Automata.FiniteState.NFA as NFA
+import Control.Applicative (Alternative (empty))
+import qualified Data.Set as Set
+import Data.Universe.Class (Finite)
 
 type ListFA a s = MonadicFA a [] s
 
--- | TODO: Test that this works.
 fromNFA :: (Ord s, Finite s) => NFA a s -> ListFA a s
 fromNFA nfa = MonadicFA {start = _start, final = _final, trans = _trans}
   where
@@ -25,7 +25,6 @@ fromNFA nfa = MonadicFA {start = _start, final = _final, trans = _trans}
     _final = NFA.prefinal nfa
     _trans = Set.toList . uncurry (NFA.step nfa)
 
--- | TODO: Test that this works.
 toNFA :: ListFA a s -> NFA a s
 toNFA m = NFA {NFA.start = _start, NFA.final = _final, NFA.trans = _trans}
   where
@@ -34,7 +33,12 @@ toNFA m = NFA {NFA.start = _start, NFA.final = _final, NFA.trans = _trans}
     _trans (q, Just x) = trans m (q, x)
     _trans (_, Nothing) = empty
 
-accepts :: (Ord s) => ListFA a s -> [a] -> Bool
-accepts m w = acceptance $ runMFA m w
+acceptsAngelic :: (Ord s) => ListFA a s -> [a] -> Bool
+acceptsAngelic m w = acceptance $ runMFA m w
   where
     acceptance = or
+
+acceptsDemonic :: (Ord s) => ListFA a s -> [a] -> Bool
+acceptsDemonic m w = acceptance $ runMFA m w
+  where
+    acceptance = and

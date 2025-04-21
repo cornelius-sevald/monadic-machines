@@ -2,10 +2,10 @@
 
 module Automata.FiniteState.Monadic.ListSpec where
 
-import Data.Alphabet
-import Data.NAry (NAry)
 import Automata.FiniteState.Monadic.List
 import qualified Automata.FiniteState.NFA as NFA
+import Data.Alphabet
+import Data.NAry (NAry)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
@@ -26,10 +26,10 @@ spec = do
       \m' w ->
         let m = mkMFA m' :: ListFA A S
             nfa = toNFA m
-         in NFA.accepts nfa w `shouldBe` accepts m w
+         in NFA.accepts nfa w `shouldBe` acceptsAngelic m w
   describe "fromNFA" $ modifyMaxSize isqrt $ do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'
             m = fromNFA nfa :: ListFA A S
-         in accepts m w `shouldBe` NFA.accepts nfa w
+         in acceptsAngelic m w `shouldBe` NFA.accepts nfa w
