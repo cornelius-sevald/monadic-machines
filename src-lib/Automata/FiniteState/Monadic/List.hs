@@ -1,5 +1,6 @@
 -- | Monadic automaton with the `List` monad.
--- Equivalent to a non-deterministic finite automaton.
+-- Equivalent to a non-deterministic finite automaton,
+-- with angelic non-determinism acceptance.
 module Automata.FiniteState.Monadic.List
   ( ListFA,
     fromNFA,
@@ -13,6 +14,7 @@ import Automata.FiniteState.Monadic
 import Automata.FiniteState.NFA (NFA (NFA))
 import qualified Automata.FiniteState.NFA as NFA
 import Control.Applicative (Alternative (empty))
+import Data.Containers.ListUtils (nubOrd)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite)
 
@@ -34,11 +36,13 @@ toNFA m = NFA {NFA.start = _start, NFA.final = _final, NFA.trans = _trans}
     _trans (_, Nothing) = empty
 
 acceptsAngelic :: (Ord s) => ListFA a s -> [a] -> Bool
-acceptsAngelic m w = acceptance $ runMFA m w
+acceptsAngelic m w = acceptance $ runMFA' m removeDups w
   where
     acceptance = or
+    removeDups = nubOrd
 
 acceptsDemonic :: (Ord s) => ListFA a s -> [a] -> Bool
-acceptsDemonic m w = acceptance $ runMFA m w
+acceptsDemonic m w = acceptance $ runMFA' m removeDups w
   where
     acceptance = and
+    removeDups = nubOrd

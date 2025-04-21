@@ -12,6 +12,7 @@
 module Data.ListListSpec where
 
 import Data.ListList
+import GHC.IsList
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck

@@ -1,5 +1,11 @@
 -- | Finite-state automata generalized with a mondaic transition function.
-module Automata.FiniteState.Monadic (MonadicFA (..), stepMFA, runMFA) where
+module Automata.FiniteState.Monadic
+  ( MonadicFA (..),
+    stepMFA,
+    runMFA,
+    runMFA',
+  )
+where
 
 import Control.Monad (foldM)
 import Data.Set (Set)
@@ -29,8 +35,24 @@ data MonadicFA a m s = MonadicFA
 stepMFA :: MonadicFA a m s -> s -> a -> m s
 stepMFA m = curry (trans m)
 
+-- | Run a Monadic Finite Automaton @m@ on input @xs@,
+-- resultuing in a monadic Boolean value.
 runMFA :: (Ord s, Monad m) => MonadicFA a m s -> [a] -> m Bool
 runMFA m xs = do
   let q_0 = start m
   q_n <- foldM (stepMFA m) q_0 xs
+  pure $ q_n `Set.member` final m
+
+-- | Like 'runMFA', but allows supplying a "shrink" function
+-- that will be applied between each step.
+-- An example might be removing duplicate elements in a list,
+-- as they have no impact on the semantics when using standard
+-- angelic or demonic non-determinism,
+-- but do impose a significant performance overhead.
+runMFA' :: (Ord s, Monad m) => MonadicFA a m s -> (m s -> m s) -> [a] -> m Bool
+runMFA' m shrink xs = do
+  let q_0 = start m
+  q_n <-
+    let c x k z = shrink (stepMFA m z x) >>= (shrink . k)
+     in foldr c return xs q_0
   pure $ q_n `Set.member` final m

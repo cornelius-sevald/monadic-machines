@@ -3,6 +3,7 @@ module Main (main) where
 import qualified Automata.FiniteState.AFASpec
 import qualified Automata.FiniteState.DFASpec
 import qualified Automata.FiniteState.Monadic.IdentitySpec
+import qualified Automata.FiniteState.Monadic.ListListSpec
 import qualified Automata.FiniteState.Monadic.ListSpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
@@ -34,6 +35,7 @@ spec = do
       describe "Monadic FA" $ do
         describe "Identity FA" Automata.FiniteState.Monadic.IdentitySpec.spec
         describe "List FA" Automata.FiniteState.Monadic.ListSpec.spec
+        describe "ListList FA" Automata.FiniteState.Monadic.ListListSpec.spec
         describe "Proposition FA" Automata.FiniteState.Monadic.PropositionSpec.spec
     describe "Pushdown Automata" $ do
       describe "Sipser Deterministic PDAs" $ do

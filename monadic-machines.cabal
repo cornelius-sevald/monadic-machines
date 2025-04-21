@@ -73,6 +73,7 @@ library
         Automata.FiniteState.Monadic
         Automata.FiniteState.Monadic.Identity
         Automata.FiniteState.Monadic.List
+        Automata.FiniteState.Monadic.ListList
         Automata.FiniteState.Monadic.Proposition
         Automata.PushDown.Util
         Automata.PushDown.SipserDPDA
@@ -144,6 +145,7 @@ test-suite monadic-machines-test
         Automata.FiniteState.AFASpec
         Automata.FiniteState.Monadic.IdentitySpec
         Automata.FiniteState.Monadic.ListSpec
+        Automata.FiniteState.Monadic.ListListSpec
         Automata.FiniteState.Monadic.PropositionSpec
         Automata.PushDown.SipserDPDASpec
         Automata.PushDown.SipserNPDASpec

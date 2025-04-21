@@ -12,6 +12,7 @@ import Control.Applicative
 import Data.OrdFunctor
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Universe.Class
 import GHC.Generics (Generic)
 import GHC.IsList
 import Test.QuickCheck (Arbitrary (..), genericShrink)
@@ -38,6 +39,11 @@ instance Monad Literal where
     (Negation x) -> case f x of
       Variable y -> Negation y
       Negation y -> Variable y
+
+instance (Universe a) => Universe (Literal a) where
+  universe = either Variable Negation <$> universe
+
+instance (Finite a) => Finite (Literal a)
 
 instance (Arbitrary a) => Arbitrary (Literal a) where
   arbitrary = do

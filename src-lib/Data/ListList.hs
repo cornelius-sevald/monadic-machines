@@ -3,8 +3,6 @@
 
 module Data.ListList
   ( ListList (..),
-    toList,
-    fromList,
     toSet,
     fromSet,
     asCNF,
@@ -17,7 +15,7 @@ import Data.Function (on)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.Generics (Generic)
-import qualified GHC.IsList as IsList
+import GHC.IsList
 import Test.QuickCheck.Arbitrary
 
 -- | A type of list-of-lists (or more accurately a set-of-sets).
@@ -29,12 +27,6 @@ import Test.QuickCheck.Arbitrary
 -- i.e. it will disregard order and duplicate elements.
 newtype ListList a = ListList {getListList :: [[a]]}
   deriving (Show, Generic)
-
-toList :: ListList a -> [[a]]
-toList (ListList xss) = xss
-
-fromList :: [[a]] -> ListList a
-fromList = ListList
 
 toSet :: (Ord a) => ListList a -> Set (Set a)
 toSet (ListList xss) = Set.fromList $ Set.fromList <$> xss
@@ -101,10 +93,10 @@ instance Traversable ListList where
         zss = sequenceA yss
      in fmap ListList zss
 
-instance IsList.IsList (ListList a) where
+instance IsList (ListList a) where
   type Item (ListList a) = [a]
-  fromList = fromList
-  toList = toList
+  fromList = ListList
+  toList (ListList xss) = xss
 
 instance (Arbitrary a) => Arbitrary (ListList a) where
   arbitrary = fromList <$> arbitrary
