@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Monadic automaton with the `Proposition` monad.
+-- | Monadic finite-state automaton with the `Proposition` monad.
 -- Equivalent to an alternating finite automaton,
 -- augmented with negation as well.
 module Automata.FiniteState.Monadic.Proposition
@@ -21,6 +21,11 @@ import qualified Data.Set as Set
 import Data.Universe.Class (Finite (..))
 
 type PropositionFA a s = MonadicFA a Proposition s
+
+accepts :: (Ord s) => PropositionFA a s -> [a] -> Bool
+accepts m w = acceptance $ runMFA m w
+  where
+    acceptance = evaluate id
 
 fromAFA :: forall a s. (Finite s, Ord s) => AFA a s -> PropositionFA a s
 fromAFA afa = MonadicFA {start = _start, final = _final, trans = _trans}
@@ -47,8 +52,3 @@ toAFA m = AFA {AFA.start = _start, AFA.final = _final, AFA.trans = _trans}
     _trans (q, a) u =
       let prop = trans m (q, a)
        in evaluate u prop
-
-accepts :: (Ord s) => PropositionFA a s -> [a] -> Bool
-accepts m w = acceptance $ runMFA m w
-  where
-    acceptance = evaluate id
