@@ -75,6 +75,7 @@ library
         Automata.FiniteState.Monadic.List
         Automata.FiniteState.Monadic.ListList
         Automata.FiniteState.Monadic.Proposition
+        Automata.FiniteState.Monadic.Probability
         Automata.PushDown.Util
         Automata.PushDown.SipserDPDA
         Automata.PushDown.SipserNPDA
@@ -82,6 +83,8 @@ library
         Automata.PushDown.Monadic
         Automata.PushDown.Monadic.Identity
         Automata.PushDown.Monadic.List
+        Automata.PushDown.Monadic.Probability
+        Automata.PushDown.Monadic.Proposition
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -93,7 +96,7 @@ library
     build-depends:
         containers ^>=0.7,
         universe-base ^>= 1.1.4,
-        list-t ^>= 1.0.5.7,
+        probability ^>= 0.2.8,
         QuickCheck ^>= 2.15.0,
         base ^>=4.17.2.1
 
@@ -147,6 +150,7 @@ test-suite monadic-machines-test
         Automata.FiniteState.Monadic.ListSpec
         Automata.FiniteState.Monadic.ListListSpec
         Automata.FiniteState.Monadic.PropositionSpec
+        Automata.FiniteState.Monadic.ProbabilitySpec
         Automata.PushDown.SipserDPDASpec
         Automata.PushDown.SipserNPDASpec
         Automata.PushDown.FPDASpec
@@ -171,6 +175,8 @@ test-suite monadic-machines-test
         QuickCheck ^>= 2.15.0,
         hspec ^>=2.11.0,
         containers ^>=0.7,
+        utility-ht ^>=0.0.17,
         universe-base ^>= 1.1.4,
+        probability ^>= 0.2.8,
         refined >= 0.8.2,
         monadic-machines

@@ -5,6 +5,7 @@ import qualified Automata.FiniteState.DFASpec
 import qualified Automata.FiniteState.Monadic.IdentitySpec
 import qualified Automata.FiniteState.Monadic.ListListSpec
 import qualified Automata.FiniteState.Monadic.ListSpec
+import qualified Automata.FiniteState.Monadic.ProbabilitySpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
 import qualified Automata.PushDown.FPDASpec
@@ -37,6 +38,7 @@ spec = do
         describe "List FA" Automata.FiniteState.Monadic.ListSpec.spec
         describe "ListList FA" Automata.FiniteState.Monadic.ListListSpec.spec
         describe "Proposition FA" Automata.FiniteState.Monadic.PropositionSpec.spec
+        describe "Probability FA" Automata.FiniteState.Monadic.ProbabilitySpec.spec
     describe "Pushdown Automata" $ do
       describe "Sipser Deterministic PDAs" $ do
         Automata.PushDown.SipserDPDASpec.spec
