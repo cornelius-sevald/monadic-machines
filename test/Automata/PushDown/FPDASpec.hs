@@ -34,14 +34,14 @@ spec :: Spec
 spec = do
   describe "Example FPDAs" $ do
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let fpda = fpdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let fpda = fpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
     context "With L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let dpda = fpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts dpda) <$> lang
@@ -76,14 +76,14 @@ spec = do
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
     context "For a DPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
@@ -98,14 +98,14 @@ spec = do
              in FPDA.accepts fpda w `shouldBe` SDPDA.accepts sdpda w
   describe "toSipserDPDA" $ do
     context "For a FPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let sdpda = FPDA.toSipserDPDA fpdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let sdpda = FPDA.toSipserDPDA fpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SDPDA.accepts sdpda) <$> langComp
     context "For a FPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let sdpda = FPDA.toSipserDPDA fpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
@@ -152,8 +152,8 @@ spec = do
 -- if the bottom of the stack is reached
 -- (signaled with the '$' symbol).
 -- Otherwise (on a '+' symbol), it goes to state 3.
-fpdakOkI :: FPDA (Maybe Int) () Bit Char
-fpdakOkI =
+fpdaOkIk :: FPDA (Maybe Int) () Bit Char
+fpdaOkIk =
   FPDA
     { startState = Just 1,
       finalStates = [Just 1, Just 4],

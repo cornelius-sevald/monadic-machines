@@ -7,27 +7,27 @@ import Data.Alphabet
 import qualified Data.Set as Set
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.Util (containsAs, containsNoAs, endsInI, endsNotInI, evenOs, unevenOs)
+import Test.Util (langContainsAs, langCompContainsAs, langEndsInI, langCompEndsInI, langEvenOs, langCompEvenOs)
 
 spec :: Spec
 spec = do
   describe "Example DFAs" $ do
     context "With L = {w | w contains an even number of 'O's}" $ do
-      let (lang, langComp) = (evenOs, unevenOs)
+      let (lang, langComp) = (langEvenOs, langCompEvenOs)
       let dfa = dfaEvenOs
       prop "accepts strings in L" $ do
         (`shouldSatisfy` accepts dfa) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldSatisfy` (not . accepts dfa)) <$> langComp
     context "With L = {w | w ends in 'I'}" $ do
-      let (lang, langComp) = (endsInI, endsNotInI)
+      let (lang, langComp) = (langEndsInI, langCompEndsInI)
       let dfa = dfaEndsInI
       prop "accepts strings in L" $ do
         (`shouldSatisfy` accepts dfa) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldSatisfy` (not . accepts dfa)) <$> langComp
     context "With L = {w | w contains 'A's}" $ do
-      let (lang, langComp) = (containsAs, containsNoAs)
+      let (lang, langComp) = (langContainsAs, langCompContainsAs)
       let dfa = dfaContainsAs
       prop "accepts strings in L" $ do
         (`shouldSatisfy` accepts dfa) <$> lang

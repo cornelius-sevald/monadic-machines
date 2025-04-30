@@ -18,14 +18,14 @@ spec :: Spec
 spec = do
   describe "Example Identity PDAs" $ do
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = pdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let pda = pdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` IdentityPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` IdentityPDA.accepts pda) <$> langComp
     context "With L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let dpda = pdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` IdentityPDA.accepts dpda) <$> lang
@@ -49,14 +49,14 @@ spec = do
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` IdentityPDA.accepts pda
     context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = IdentityPDA.fromSipserDPDA SDPDASpec.dpdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let pda = IdentityPDA.fromSipserDPDA SDPDASpec.dpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` IdentityPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` IdentityPDA.accepts pda) <$> langComp
     context "For a DPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let pda = IdentityPDA.fromSipserDPDA SDPDASpec.dpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` IdentityPDA.accepts pda) <$> lang
@@ -64,14 +64,14 @@ spec = do
         (`shouldNotSatisfy` IdentityPDA.accepts pda) <$> langComp
   describe "toSipserDPDA" $ do
     context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let sdpda = IdentityPDA.toSipserDPDA pdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let sdpda = IdentityPDA.toSipserDPDA pdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SDPDA.accepts sdpda) <$> langComp
     context "For a DPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let sdpda = IdentityPDA.toSipserDPDA pdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
@@ -82,9 +82,9 @@ spec = do
 
 -- | A PDA which recognizes the language {OᵏIᵏ | k ≥ 0}.
 --
--- See 'FPDASpec.fpdakOkI'.
-pdakOkI :: IdentityPDA (Maybe Int) () Bit Char
-pdakOkI = IdentityPDA.fromFPDA FPDASpec.fpdakOkI
+-- See 'FPDASpec.fpdaOkIk'.
+pdaOkIk :: IdentityPDA (Maybe Int) () Bit Char
+pdaOkIk = IdentityPDA.fromFPDA FPDASpec.fpdaOkIk
 
 -- | A PDA which recognizes the language {w·c·w^R | c ∉ w}.
 --

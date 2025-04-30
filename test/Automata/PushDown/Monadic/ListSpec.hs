@@ -43,14 +43,14 @@ spec :: Spec
 spec = do
   describe "Example List PDAs" $ do
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let pda = pdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let pda = pdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
     context "With L = {w | w is a palindrome}" $ do
-      let (lang, langComp) = (palindromes, nonpalindromes)
+      let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let pda = pdaPalindromes
       prop "accepts strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
@@ -58,7 +58,7 @@ spec = do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
     -- TODO: Move this to a dedicated `invert` test case.
     context "With L = {w | w is not a palindrome}" $ do
-      let (lang, langComp) = (nonpalindromes, palindromes)
+      let (lang, langComp) = (langCompPalindromes, langPalindromes)
       let pda = invert pdaPalindromes
       prop "accepts strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
@@ -75,14 +75,14 @@ spec = do
         prop "rejects all strings of length >1" $
           \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-        let (lang, langComp) = (kOkI, nonkOkI)
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdakOkI
+        let (lang, langComp) = (langOkIk, langCompOkIk)
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOkIk
         prop "accepts strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
         prop "rejects strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a NPDA recognizing L = {w | w is a palindrome}" $ do
-        let (lang, langComp) = (palindromes, nonpalindromes)
+        let (lang, langComp) = (langPalindromes, langCompPalindromes)
         let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaPalindromes
         prop "accepts strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
@@ -100,14 +100,14 @@ spec = do
                in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
   describe "toSipserNPDA" $ do
     context "For a List PDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let snpda = ListPDA.toSipserNPDA pdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let snpda = ListPDA.toSipserNPDA pdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts snpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
     context "For a List PDA recognizing L = {w | w is a palindrome}" $ do
-      let (lang, langComp) = (palindromes, nonpalindromes)
+      let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let snpda = ListPDA.toSipserNPDA pdaPalindromes
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts snpda) <$> lang
@@ -125,8 +125,8 @@ spec = do
 
 {- Example List PDAs -}
 
-pdakOkI :: ListPDA Word8 () Bit Char
-pdakOkI =
+pdaOkIk :: ListPDA Word8 () Bit Char
+pdaOkIk =
   MPDA.MonadicPDA
     { MPDA.startState = 1,
       MPDA.finalStates = [1, 4],

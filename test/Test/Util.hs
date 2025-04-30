@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Testing utilities.
 module Test.Util where
@@ -41,11 +42,11 @@ mkLangGen' p = (mkLangGen p, mkLangGen (not . p))
 {- Example languages -}
 
 -- | {OᵏIᵏ | k ≥ 0} and its complement.
-kOkI, nonkOkI :: Gen [Bit]
-kOkI = sized $ \n -> do
+langOkIk, langCompOkIk :: Gen [Bit]
+langOkIk = sized $ \n -> do
   k <- chooseInt (0, n `div` 2)
   pure $ replicate k O ++ replicate k I
-nonkOkI = mkLangGen (not . p)
+langCompOkIk = mkLangGen (not . p)
   where
     p w =
       let n = length w
@@ -53,29 +54,29 @@ nonkOkI = mkLangGen (not . p)
        in even n && all (== O) (take k w) && all (== I) (drop k w)
 
 -- | {w | w contains an even number of 'O's} and its complement.
-evenOs, unevenOs :: Gen [Bit]
-(evenOs, unevenOs) = mkLangGen' p
+langEvenOs, langCompEvenOs :: Gen [Bit]
+(langEvenOs, langCompEvenOs) = mkLangGen' p
   where
     p = even . length . filter (== O)
 
 -- | {w | w ends in 'I'} and its complement.
-endsInI, endsNotInI :: Gen [Bit]
-(endsInI, endsNotInI) = mkLangGen' p
+langEndsInI, langCompEndsInI :: Gen [Bit]
+(langEndsInI, langCompEndsInI) = mkLangGen' p
   where
     p w = not (null w) && last w == I
 
 -- | {w | w contains an 'A's} and its complement.
-containsAs, containsNoAs :: Gen [ABC]
-containsAs = mkLangGen (A `elem`)
-containsNoAs = filter (/= A) <$> arbitrary
+langContainsAs, langCompContainsAs :: Gen [ABC]
+langContainsAs = mkLangGen (A `elem`)
+langCompContainsAs = filter (/= A) <$> arbitrary
 
 -- | {w·c·w^R | c ∉ w}
-mirrored, nonmirrored :: Gen [Either ABC ()]
-mirrored = do
+langMirrored, langCompMirrored :: forall a. (Eq a, Arbitrary a) => Gen [Either a ()]
+langMirrored = do
   w <- fmap (Left <$>) arbitrary
   let c = Right ()
   pure $ w <> [c] <> reverse w
-nonmirrored = mkLangGen (not . isMirrored)
+langCompMirrored = mkLangGen (not . isMirrored)
   where
     isMirrored w = fromMaybe False $ do
       let n = length w `div` 2
@@ -87,14 +88,28 @@ nonmirrored = mkLangGen (not . isMirrored)
       pure $ wl == reverse wr
 
 -- | {w | w is a palindrome} and its complement.
-palindromes, nonpalindromes :: Gen [ABC]
-palindromes = do
-  w <- arbitrary :: Gen [ABC]
-  middle <- arbitrary :: Gen (Maybe ABC)
+langPalindromes, langCompPalindromes :: forall a. (Eq a, Arbitrary a) => Gen [a]
+langPalindromes = do
+  w <- arbitrary :: Gen [a]
+  middle <- arbitrary :: Gen (Maybe a)
   pure $ w <> maybeToList middle <> reverse w
-nonpalindromes = mkLangGen (not . isPalindrome)
+langCompPalindromes = mkLangGen (not . isPalindrome)
   where
     isPalindrome w = and $ zipWith (==) w (reverse w)
+
+-- | { w·w } and its complement.
+--
+-- What's special about this languag is that it is not in CFL,
+-- but its complement is.
+langRepeated, langCompRepeated :: forall a. (Eq a, Arbitrary a) => Gen [a]
+langRepeated = do
+  w <- arbitrary :: Gen [a]
+  pure $ w <> w
+langCompRepeated = mkLangGen (not . repeated)
+  where
+    repeated w =
+      let n = length w
+       in even n && and (zipWith (==) w $ take (n `div` 2) w)
 
 {- Creating automata from arbitrary values. -}
 

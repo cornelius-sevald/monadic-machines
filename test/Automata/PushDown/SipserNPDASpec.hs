@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.Util (kOkI, nonkOkI, nonpalindromes, palindromes)
+import Test.Util
 
 spec :: Spec
 spec = do
@@ -24,14 +24,14 @@ spec = do
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SNPDA.accepts npda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let npda = npdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let npda = npdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts npda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.accepts npda) <$> langComp
     context "With L = {w | w is a palindrome}" $ do
-      let (lang, langComp) = (palindromes, nonpalindromes)
+      let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let npda = npdaPalindromes
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts npda) <$> lang
@@ -61,8 +61,8 @@ npdaLoop =
     }
 
 -- | PDA from figure 2.15 of [1]
-npdakOkI :: SipserNPDA Word8 Bit Char
-npdakOkI =
+npdaOkIk :: SipserNPDA Word8 Bit Char
+npdaOkIk =
   SipserNPDA
     { startState = 1,
       finalStates = [1, 4],

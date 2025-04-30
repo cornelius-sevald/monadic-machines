@@ -12,7 +12,7 @@ import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import Test.Util (kOkI, mirrored, nonkOkI, nonmirrored)
+import Test.Util
 
 spec :: Spec
 spec = do
@@ -45,14 +45,14 @@ spec = do
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
-      let (lang, langComp) = (kOkI, nonkOkI)
-      let dpda = dpdakOkI
+      let (lang, langComp) = (langOkIk, langCompOkIk)
+      let dpda = dpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SDPDA.accepts dpda) <$> langComp
     context "With L = {w·c·w^R | c ∉ w}" $ do
-      let (lang, langComp) = (mirrored, nonmirrored)
+      let (lang, langComp) = (langMirrored, langCompMirrored)
       let dpda = dpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
@@ -119,8 +119,8 @@ dpdaPopEmpty =
     }
 
 -- | Sipser DPDA that recognizes the language {OᵏIᵏ | k ≥ 0}.
-dpdakOkI :: SipserDPDA Word8 Bit Char
-dpdakOkI =
+dpdaOkIk :: SipserDPDA Word8 Bit Char
+dpdaOkIk =
   SipserDPDA
     { startState = 1,
       finalStates = [1, 4],
