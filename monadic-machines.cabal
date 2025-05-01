@@ -94,11 +94,12 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:
-        containers ^>=0.7,
+        containers ^>= 0.7,
         universe-base ^>= 1.1.4,
+        these ^>= 1.2.1,
         probability ^>= 0.2.8,
         QuickCheck ^>= 2.15.0,
-        base ^>=4.17.2.1
+        base ^>= 4.17.2.1
 
     -- Directories containing source files.
     hs-source-dirs:   src-lib
@@ -176,6 +177,7 @@ test-suite monadic-machines-test
         hspec ^>=2.11.0,
         containers ^>=0.7,
         utility-ht ^>=0.0.17,
+        these ^>= 1.2.1,
         universe-base ^>= 1.1.4,
         probability ^>= 0.2.8,
         refined >= 0.8.2,

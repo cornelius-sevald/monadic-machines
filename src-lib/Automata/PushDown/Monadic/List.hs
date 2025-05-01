@@ -17,6 +17,7 @@ import Control.Applicative (Alternative (empty))
 import Control.Arrow
 import Control.Monad (foldM)
 import qualified Data.Set as Set
+import Data.These
 import Data.Universe.Class (Finite (..))
 
 type ListPDA r p a t = MonadicPDA [] r p a t
@@ -30,6 +31,87 @@ acceptsDemonic :: (Ord r) => ListPDA r p a t -> [a] -> Bool
 acceptsDemonic m w = acceptance $ runMPDA m w
   where
     acceptance = and
+
+-- Invert a List PDA, such that List PDA @m@ accepts string @w@
+-- with angelic non-determinism iff. @invert m@ rejects @w@
+-- with *demonic* non-determinism, or the other way around.
+invert :: (Ord r, Finite r) => ListPDA r p a t -> ListPDA r p a t
+invert m = m {finalStates = complement $ finalStates m}
+  where
+    complement xs = Set.fromList universeF `Set.difference` xs
+
+-- | For a ListPDA @m1@ and @m2@, both with alphabet Σ,
+-- construct a new ListPDA @m@ such that, for string @w@ ∈ Σ*,
+-- @m@ accepts @w@ with angelic non-determinism iff.
+-- either @m@ or @m@ (or both) accept @m@ with angelic non-determinism.
+--
+-- TODO: Test, and see if I can make a similar 'intersect' function for
+-- demonic non-determinism.
+union ::
+  (Ord r1, Ord r2) =>
+  ListPDA r1 p1 a t1 ->
+  ListPDA r2 p2 a t2 ->
+  ListPDA (Maybe (Either r1 r2)) (Either p1 p2) a (These t1 t2)
+union m1 m2 =
+  MonadicPDA
+    { startSymbol = _startSymbol,
+      startState = _startState,
+      finalStates = _finalStates,
+      transRead = _transRead,
+      transPop = _transPop
+    }
+  where
+    -- We use a designated start state 'Nothing'.
+    _startState = Nothing
+    -- As we may need the start symbol of either M1 or M2,
+    -- we put both as the designated start symbol.
+    _startSymbol = These (startSymbol m1) (startSymbol m2)
+    -- The final states is the union of the final states of M1 and M2,
+    -- as well as the designated 'Nothing' start state if either of
+    -- the start states of M1 or M2 is a final state.
+    _finalStates =
+      let ssL = startState m1
+          ssR = startState m2
+          fsL = finalStates m1
+          fsR = finalStates m2
+       in Set.map (Just . Left) fsL
+            `Set.union` Set.map (Just . Right) fsR
+            `Set.union` Set.fromList [_startState | ssL `Set.member` fsL || ssR `Set.member` fsR]
+    _transRead = \case
+      -- When reading an input symbol in the designated start state,
+      -- we non-deterministically choose the read transition from
+      -- either M1 or M2 in their respecitve start states.
+      (Nothing, a) ->
+        let (ql, qr) = (startState m1, startState m2)
+         in transReadL (ql, a) <> transReadR (qr, a)
+      -- When in a read state in M1, we use the read transition function of M1...
+      (Just (Left q), a) -> transReadL (q, a)
+      -- ... and conversely for M2.
+      (Just (Right q), a) -> transReadR (q, a)
+    _transPop = \case
+      -- When in a pop state in M1, we use the pop transition function of M1,
+      -- using a stack symbol from M1.
+      (Left q, This t) -> transPopL (q, t)
+      -- If there is both a stack symbol from M1 and M2,
+      -- we discard the stack symbol from M2...
+      (Left q, These t _) -> transPopL (q, t)
+      -- ... and conversely for M2.
+      (Right q, That t) -> transPopR (q, t)
+      (Right q, These _ t) -> transPopR (q, t)
+      -- It should not be possible to be in a situation where
+      -- we are in a pop state of M1 with only a stack symbol from M2.
+      (Left _, That _) -> error "In pop state of M1 with only stack symbol from M2."
+      -- ... and similarly for M2.
+      (Right _, This _) -> error "In pop state of M2 with only stack symbol from M1."
+    -- Helper functions
+    transReadL = transL (transRead m1)
+    transReadR = transR (transRead m2)
+    transPopL = transL (transPop m1)
+    transPopR = transR (transPop m2)
+    transL δ = map (((Just . Left) *** map (eitherThese . Left)) +++ Left) . δ
+    transR δ = map (((Just . Right) *** map (eitherThese . Right)) +++ Right) . δ
+    eitherThese :: Either a b -> These a b
+    eitherThese = either This That
 
 -- | Convert a List PDA to a Sipser NPDA.
 --

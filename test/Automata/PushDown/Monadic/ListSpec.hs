@@ -13,9 +13,8 @@ import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
 import Data.Containers.ListUtils (nubOrd)
 import Data.NAry (NAry)
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Universe.Class (Finite (..))
+import Data.These (These)
+import Data.Void (Void, absurd)
 import Data.Word (Word8)
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -56,14 +55,30 @@ spec = do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-    -- TODO: Move this to a dedicated `invert` test case.
-    context "With L = {w | w is not a palindrome}" $ do
-      let (lang, langComp) = (langCompPalindromes, langPalindromes)
-      let pda = invert pdaPalindromes
-      prop "accepts strings in L" $ do
-        (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
-      prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
+    context "With L = {w·w | w ∈ Σ*}" $
+      modifyMaxSize (`div` 2) $ do
+        let (lang, langComp) = (langRepeated, langCompRepeated)
+        let pda = pdaNonRepeated
+        prop "accepts strings not in L" $ do
+          (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+        prop "rejects strings in L" $ do
+          (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+  describe "The 'invert' function" $ do
+    context "With the palindrome PDA and L = {w | w is a palindrome}" $ do
+      let (lang, langComp) = (langPalindromes, langCompPalindromes)
+      let pda = ListPDA.invert pdaPalindromes
+      prop "accepts (w. demonic non-det.) strings not in L" $ do
+        (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
+      prop "rejects (w. demonic non-det.) strings in L" $ do
+        (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> lang
+    context "With the non-repeated PDA and L = {w·w | w ∈ Σ*}" $
+      modifyMaxSize (`div` 2) $ do
+        let (lang, langComp) = (langRepeated, langCompRepeated)
+        let pda = ListPDA.invert pdaNonRepeated
+        prop "accepts (w. demonic non-det.) strings in L" $ do
+          (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
+        prop "rejects (w. demonic non-det.) strings not in L" $ do
+          (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
   describe "fromSipserNPDA" $
     modifyMaxSize (`div` 10) $ do
       context "With an endlessly looping Sipser NPDA" $ do
@@ -90,6 +105,34 @@ spec = do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a random Sipser NPDA" $
         -- We have to reduce the size a crazy amount,
+        -- We have to reduce the size a crazy amount,
+        -- We have to reduce the size a crazy amount,
+        -- We have to reduce the size a crazy amount,
+        -- but otherwise it runs for ages.
+        -- but otherwise it runs for ages.
+        -- but otherwise it runs for ages.
+        -- but otherwise it runs for ages.
+        -- Even at this measly size, it has caught a few bugs.
+        -- Even at this measly size, it has caught a few bugs.
+        -- Even at this measly size, it has caught a few bugs.
+        -- Even at this measly size, it has caught a few bugs.
+
+        -- We have to reduce the size a crazy amount,
+
+        -- We have to reduce the size a crazy amount,
+        -- but otherwise it runs for ages.
+        -- but otherwise it runs for ages.
+        -- Even at this measly size, it has caught a few bugs.
+        -- Even at this measly size, it has caught a few bugs.
+
+        -- We have to reduce the size a crazy amount,
+        -- We have to reduce the size a crazy amount,
+        -- but otherwise it runs for ages.
+        -- but otherwise it runs for ages.
+        -- Even at this measly size, it has caught a few bugs.
+        -- Even at this measly size, it has caught a few bugs.
+
+        -- We have to reduce the size a crazy amount,
         -- but otherwise it runs for ages.
         -- Even at this measly size, it has caught a few bugs.
         modifyMaxSize (const 3) $ do
@@ -115,6 +158,26 @@ spec = do
         (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
     context "For a random List PDA" $
       -- We have to reduce the size a crazy amount,
+      -- We have to reduce the size a crazy amount,
+      -- We have to reduce the size a crazy amount,
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for (maybe literally) ages.
+      -- but otherwise it runs for (maybe literally) ages.
+      -- but otherwise it runs for (maybe literally) ages.
+      -- but otherwise it runs for (maybe literally) ages.
+
+      -- We have to reduce the size a crazy amount,
+
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for (maybe literally) ages.
+      -- but otherwise it runs for (maybe literally) ages.
+
+      -- We have to reduce the size a crazy amount,
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for (maybe literally) ages.
+      -- but otherwise it runs for (maybe literally) ages.
+
+      -- We have to reduce the size a crazy amount,
       -- but otherwise it runs for (maybe literally) ages.
       modifyMaxSize (`div` 25) $ do
         prop "recognizes the same language" $ do
@@ -123,7 +186,11 @@ spec = do
                 sdpda = ListPDA.toSipserNPDA m
              in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts sdpda w
 
-{- Example List PDAs -}
+{- Example List PDAs
+ -
+ - Unless otherwise specified, the PDAs are intented to be used
+ - with *angelic* non-determinism.
+ - -}
 
 pdaOkIk :: ListPDA Word8 () Bit Char
 pdaOkIk =
@@ -175,12 +242,77 @@ pdaPalindromes =
         (Right (), t) -> [Left (3, [t])]
     }
 
-{- Helper functions -}
-complement :: (Ord a, Finite a) => Set a -> Set a
-complement xs = Set.fromList universeF `Set.difference` xs
+-- | A List PDA that recognizes the language of strings of odd length.
+pdaOdd :: ListPDA (NAry 2) Void a ()
+pdaOdd =
+  MPDA.MonadicPDA
+    { MPDA.startSymbol = _startSymbol,
+      MPDA.startState = _startState,
+      MPDA.finalStates = _finalStates,
+      MPDA.transRead = _transRead,
+      MPDA.transPop = _transPop
+    }
+  where
+    _startSymbol = ()
+    _startState = 1
+    _finalStates = [2]
+    _transRead = \case
+      (1, _) -> [Left (2, [])]
+      (2, _) -> [Left (1, [])]
+      _ -> []
+    _transPop (q, _) = absurd q
 
--- Invert a List PDA, such that List PDA @m@ accepts string @w@
--- with angelic non-determinism iff. @invert m@ rejects @w@
--- with *demonic* non-determinism.
-invert :: (Ord r, Finite r) => ListPDA r p a t -> ListPDA r p a t
-invert m = m {MPDA.finalStates = complement $ MPDA.finalStates m}
+-- | A List PDA that recognizes the complement of the language { w·w | w ∈ { A,B,C }* },
+-- when using angelig non-determinism.
+--
+-- Implementation taken from the description given in:
+-- https://cs.stackexchange.com/a/170019.
+pdaNonRepeated ::
+  ListPDA
+    (Maybe (Either (NAry 2) (Either (NAry 5) (NAry 5, ABC, ABC))))
+    (Either Void (Either (NAry 5) (NAry 5, ABC, ABC)))
+    ABC
+    (These () (Bottomed ()))
+pdaNonRepeated = m1 `ListPDA.union` m2
+  where
+    m1 = pdaOdd
+    m2 =
+      MPDA.MonadicPDA
+        { MPDA.startSymbol = _startSymbol,
+          MPDA.startState = _startState,
+          MPDA.finalStates = _finalStates,
+          MPDA.transRead = _transRead,
+          MPDA.transPop = _transPop
+        }
+    _startSymbol = Bottom
+    _startState = Left 1
+    _finalStates = [Left 5]
+    _transRead = \case
+      (Left 1, a) ->
+        [ Left (Left 1, [SSymbol ()]),
+          Left (Right (2, a, a), [])
+        ]
+      (Right (2, a, _), b) ->
+        [Right $ Right (2, a, b)]
+      (Right (3, a, _), b) ->
+        [ Left (Right (3, a, b), [SSymbol ()]),
+          Right $ Right (3, a, b)
+        ]
+      (Left 4, _) ->
+        [Right $ Left 4]
+      (Left 5, _) -> []
+      c -> error $ "invalid read configuration " ++ show c
+    _transPop = \case
+      (Right (2, a, b), SSymbol ()) ->
+        [Left (Right (2, a, b), [])]
+      (Right (2, a, b), Bottom) ->
+        [Left (Left 5, [Bottom]) | a /= b]
+          ++ [Left (Right (3, a, b), [SSymbol (), Bottom])]
+      (Right (3, a, b), SSymbol ())
+        | a /= b -> [Left (Left 4, [])]
+        | a == b -> []
+      (Left 4, SSymbol ()) ->
+        [Left (Left 4, [])]
+      (Left 4, Bottom) ->
+        [Left (Left 5, [])]
+      c -> error $ "invalid pop configuration " ++ show c

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -5,6 +6,7 @@
 module Automata.PushDown.SipserNPDA where
 
 import Automata.PushDown.Util
+import Control.Arrow (Arrow ((***)))
 import Data.Maybe (isNothing)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -128,15 +130,41 @@ accepts pda as = go as (startState pda, [])
       let cs' = step pda a c
        in any (go as') cs'
 
--- A type of Sipser NPDA with a dedicated end-of-input symbol.
-type EOISipserNPDA s a t = SipserNPDA s (Ended a) t
-
--- | Wrapper acceptance function for Sipser NPDAs with a dedicated end-of-input symbol,
--- likely created via 'Automata.PushDown.Monadic.List.toSipserNPDA.
+-- | For a NPDA M1 and M2 both with alphabet Σ,
+-- construct a new NPDA M such that, for string w ∈ Σ*,
+-- M accepts w iff. either M1 or M2 (or both) accepts w.
 --
--- Automatically ends the input word with the dedicated end-of-input symbol.
-acceptsEOI :: (Ord s, Ord t) => EOISipserNPDA s a t -> [a] -> Bool
-acceptsEOI pda w = accepts pda (fmap ISymbol w <> [End])
+-- TODO: Test.
+union ::
+  (Ord s1, Ord s2, Ord t1, Ord t2) =>
+  SipserNPDA s1 a t1 ->
+  SipserNPDA s2 a t2 ->
+  SipserNPDA (Maybe (Either s1 s2)) a (Either t1 t2)
+union m1 m2 =
+  SipserNPDA
+    { startState = _startState,
+      finalStates = _finalStates,
+      trans = _trans
+    }
+  where
+    _startState = Nothing
+    _finalStates =
+      Set.map lef (finalStates m1)
+        `Set.union` Set.map rig (finalStates m2)
+    _trans = \case
+      (Nothing, Nothing, Nothing) ->
+        let l = (lef $ startState m1, [])
+            r = (rig $ startState m2, [])
+         in [l, r]
+      (Just (Left q), Nothing, a) -> transL (q, Nothing, a)
+      (Just (Left q), Just (Left t), a) -> transL (q, Just t, a)
+      (Just (Right q), Nothing, a) -> transR (q, Nothing, a)
+      (Just (Right q), Just (Right t), a) -> transR (q, Just t, a)
+      _ -> []
+    lef = Just . Left
+    rig = Just . Right
+    transL = Set.map (lef *** fmap Left) . trans m1
+    transR = Set.map (rig *** fmap Right) . trans m2
 
 {- Bibliography
  - ~~~~~~~~~~~~
