@@ -109,7 +109,7 @@ langCompRepeated = mkLangGen (not . repeated)
   where
     repeated w =
       let n = length w
-       in even n && and (zipWith (==) w $ take (n `div` 2) w)
+       in even n && and (zipWith (==) w $ drop (n `div` 2) w)
 
 {- Creating automata from arbitrary values. -}
 
