@@ -3,9 +3,21 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 
-module Data.NAry (NAry, ith, unIth, pattern Ith) where
+module Data.NAry
+  ( NAry,
+    ith,
+    unIth,
+    pattern Ith,
+    relax,
+    safeSucc,
+    safePred,
+    safePred',
+  )
+where
 
+import Control.Arrow ((***))
 import Data.Data (Proxy (Proxy))
 import Data.Universe.Class
 import Data.Universe.Helpers (Tagged (Tagged))
@@ -55,6 +67,20 @@ unIth = succ . fromIntegral . fromEnum
 pattern Ith :: Nat -> NAry n
 pattern Ith i <- Ith# i
 
+relax :: forall n m proxy. (KnownNat n, KnownNat m, n <= m) => NAry n -> proxy m -> NAry m
+relax (Ith# i) _ = Ith# i
+
+safeSucc :: (KnownNat n) => NAry n -> NAry (n + 1)
+safeSucc (Ith# i) = Ith# i
+
+safePred :: (KnownNat n) => NAry n -> Maybe (NAry (n - 1))
+safePred (Ith# 1) = Nothing
+safePred (Ith# i) = Just $ Ith# (i - 1)
+
+safePred' :: NAry n -> Maybe (NAry n)
+safePred' (Ith# 1) = Nothing
+safePred' (Ith# i) = Just $ Ith# (i - 1)
+
 -- | This is only for the 'fromInteger' function,
 -- which will let us write n-ary types as integer literals
 -- (however unsafe that might be).
@@ -65,6 +91,13 @@ instance (KnownNat n) => Num (NAry n) where
   (+) = undefined
   (*) = undefined
   negate = undefined
+
+instance (KnownNat n) => Real (NAry n) where
+  toRational (Ith# i) = toRational i
+
+instance (KnownNat n) => Integral (NAry n) where
+  quotRem (Ith# i) (Ith# j) = (Ith# *** Ith#) (quotRem i j)
+  toInteger (Ith# i) = toInteger i
 
 instance (KnownNat n) => Universe (NAry n) where
   universe = ith <$> [1 .. n']
