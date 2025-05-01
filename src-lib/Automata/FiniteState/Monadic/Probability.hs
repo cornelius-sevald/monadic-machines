@@ -10,7 +10,7 @@ import Automata.FiniteState.Monadic
 import Numeric.Probability.Distribution (T)
 import qualified Numeric.Probability.Distribution as Dist
 
-type ProbabilityFA a s prob = MonadicFA a (T prob) s
+type ProbabilityFA prob a s = MonadicFA a (T prob) s
 
 -- | Acceptance function for PFA.
 --
@@ -19,7 +19,7 @@ type ProbabilityFA a s prob = MonadicFA a (T prob) s
 -- of η means that the automaton is less likely to accepts.
 accepts ::
   (Ord s, Ord prob, Num prob) =>
-  ProbabilityFA a s prob ->
+  ProbabilityFA prob a s ->
   prob ->
   [a] ->
   Bool

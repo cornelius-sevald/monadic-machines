@@ -58,7 +58,7 @@ langStochastic η = (lang, langComp)
 -- { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 1/2 }.
 --
 -- Taken from [1].
-pfaStochastic :: ProbabilityFA Bit Int Rational
+pfaStochastic :: ProbabilityFA Rational Bit Int
 pfaStochastic = MonadicFA {trans = _trans, start = _start, final = _final}
   where
     _start = 1

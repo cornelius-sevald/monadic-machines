@@ -105,34 +105,6 @@ spec = do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a random Sipser NPDA" $
         -- We have to reduce the size a crazy amount,
-        -- We have to reduce the size a crazy amount,
-        -- We have to reduce the size a crazy amount,
-        -- We have to reduce the size a crazy amount,
-        -- but otherwise it runs for ages.
-        -- but otherwise it runs for ages.
-        -- but otherwise it runs for ages.
-        -- but otherwise it runs for ages.
-        -- Even at this measly size, it has caught a few bugs.
-        -- Even at this measly size, it has caught a few bugs.
-        -- Even at this measly size, it has caught a few bugs.
-        -- Even at this measly size, it has caught a few bugs.
-
-        -- We have to reduce the size a crazy amount,
-
-        -- We have to reduce the size a crazy amount,
-        -- but otherwise it runs for ages.
-        -- but otherwise it runs for ages.
-        -- Even at this measly size, it has caught a few bugs.
-        -- Even at this measly size, it has caught a few bugs.
-
-        -- We have to reduce the size a crazy amount,
-        -- We have to reduce the size a crazy amount,
-        -- but otherwise it runs for ages.
-        -- but otherwise it runs for ages.
-        -- Even at this measly size, it has caught a few bugs.
-        -- Even at this measly size, it has caught a few bugs.
-
-        -- We have to reduce the size a crazy amount,
         -- but otherwise it runs for ages.
         -- Even at this measly size, it has caught a few bugs.
         modifyMaxSize (const 3) $ do
@@ -157,26 +129,6 @@ spec = do
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
     context "For a random List PDA" $
-      -- We have to reduce the size a crazy amount,
-      -- We have to reduce the size a crazy amount,
-      -- We have to reduce the size a crazy amount,
-      -- We have to reduce the size a crazy amount,
-      -- but otherwise it runs for (maybe literally) ages.
-      -- but otherwise it runs for (maybe literally) ages.
-      -- but otherwise it runs for (maybe literally) ages.
-      -- but otherwise it runs for (maybe literally) ages.
-
-      -- We have to reduce the size a crazy amount,
-
-      -- We have to reduce the size a crazy amount,
-      -- but otherwise it runs for (maybe literally) ages.
-      -- but otherwise it runs for (maybe literally) ages.
-
-      -- We have to reduce the size a crazy amount,
-      -- We have to reduce the size a crazy amount,
-      -- but otherwise it runs for (maybe literally) ages.
-      -- but otherwise it runs for (maybe literally) ages.
-
       -- We have to reduce the size a crazy amount,
       -- but otherwise it runs for (maybe literally) ages.
       modifyMaxSize (`div` 25) $ do
@@ -301,7 +253,7 @@ pdaNonRepeated = m1 `ListPDA.union` m2
       (Left 4, _) ->
         [Right $ Left 4]
       (Left 5, _) -> []
-      c -> error $ "invalid read configuration " ++ show c
+      c -> error $ "invalid read state / input " ++ show c
     _transPop = \case
       (Right (2, a, b), SSymbol ()) ->
         [Left (Right (2, a, b), [])]
@@ -315,4 +267,4 @@ pdaNonRepeated = m1 `ListPDA.union` m2
         [Left (Left 4, [])]
       (Left 4, Bottom) ->
         [Left (Left 5, [])]
-      c -> error $ "invalid pop configuration " ++ show c
+      c -> error $ "invalid pop state / stack input " ++ show c

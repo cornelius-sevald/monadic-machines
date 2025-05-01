@@ -11,6 +11,7 @@ import qualified Automata.FiniteState.NFASpec
 import qualified Automata.PushDown.FPDASpec
 import qualified Automata.PushDown.Monadic.IdentitySpec
 import qualified Automata.PushDown.Monadic.ListSpec
+import qualified Automata.PushDown.Monadic.ProbabilitySpec
 import qualified Automata.PushDown.SipserDPDASpec
 import qualified Automata.PushDown.SipserNPDASpec
 import qualified Data.ListListSpec
@@ -49,3 +50,4 @@ spec = do
       describe "Monadic PDA" $ do
         describe "Identity PDA" Automata.PushDown.Monadic.IdentitySpec.spec
         describe "List PDA" Automata.PushDown.Monadic.ListSpec.spec
+        describe "Probability PDA" Automata.PushDown.Monadic.ProbabilitySpec.spec

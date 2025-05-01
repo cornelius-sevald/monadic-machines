@@ -16,7 +16,7 @@ import qualified Automata.PushDown.SipserNPDA as SNPDA
 import Control.Monad (guard)
 import Data.Alphabet
 import Data.Either (isLeft)
-import Data.List (uncons)
+import Data.List (genericReplicate, uncons)
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.NAry
 import Data.Set (Set)
@@ -110,6 +110,26 @@ langCompRepeated = mkLangGen (not . repeated)
     repeated w =
       let n = length w
        in even n && and (zipWith (==) w $ drop (n `div` 2) w)
+
+langEQ, langCompEQ :: Gen [ABC]
+langEQ = do
+  n <- arbitrary :: Gen Integer
+  let as = genericReplicate n A
+      bs = genericReplicate n B
+      cs = genericReplicate n C
+  pure $ as <> bs <> cs
+langCompEQ = mkLangGen (not . eq)
+  where
+    eq w =
+      let k = length w
+          (n, r) = k `quotRem` 3
+          as = take n w
+          bs = take n $ drop n w
+          cs = drop (2 * n) w
+       in r == 0
+            && all (== A) as
+            && all (== B) bs
+            && all (== C) cs
 
 {- Creating automata from arbitrary values. -}
 

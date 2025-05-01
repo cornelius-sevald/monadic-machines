@@ -10,7 +10,7 @@ import Automata.PushDown.Monadic
 import Numeric.Probability.Distribution (T)
 import qualified Numeric.Probability.Distribution as Dist
 
-type ProbabilityPDA r p a t prob = MonadicPDA (T prob) r p a t
+type ProbabilityPDA prob r p a t = MonadicPDA (T prob) r p a t
 
 -- | Acceptance function for PPDA.
 --
@@ -19,7 +19,7 @@ type ProbabilityPDA r p a t prob = MonadicPDA (T prob) r p a t
 -- of η means that the automaton is less likely to accepts.
 accepts ::
   (Ord r, Ord prob, Num prob) =>
-  ProbabilityPDA r p a t prob ->
+  ProbabilityPDA prob r p a t ->
   prob ->
   [a] ->
   Bool

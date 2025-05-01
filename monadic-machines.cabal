@@ -157,6 +157,7 @@ test-suite monadic-machines-test
         Automata.PushDown.FPDASpec
         Automata.PushDown.Monadic.IdentitySpec
         Automata.PushDown.Monadic.ListSpec
+        Automata.PushDown.Monadic.ProbabilitySpec
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
