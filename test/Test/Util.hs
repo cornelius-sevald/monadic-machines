@@ -118,8 +118,14 @@ langEQ = do
       bs = genericReplicate n B
       cs = genericReplicate n C
   pure $ as <> bs <> cs
-langCompEQ = mkLangGen (not . eq)
+langCompEQ = oneof [gen1, gen2]
   where
+    gen1 = mkLangGen (not . eq)
+    gen2 = do
+      w <- suchThat langEQ (not . null)
+      let n = length w
+      i <- chooseInt (0, n - 1)
+      pure $ take i w <> drop (i + 1) w
     eq w =
       let k = length w
           (n, r) = k `quotRem` 3

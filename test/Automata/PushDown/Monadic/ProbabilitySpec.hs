@@ -7,7 +7,6 @@ import qualified Automata.PushDown.Monadic as MPDA
 import Automata.PushDown.Monadic.Probability (ProbabilityPDA)
 import qualified Automata.PushDown.Monadic.Probability as ProbabilityPDA
 import Automata.PushDown.Util (Bottomed (..))
-import Control.Applicative (Alternative (empty))
 import Data.Alphabet
 import Data.List (genericReplicate)
 import Data.Ratio
@@ -44,7 +43,7 @@ pdaEQ ::
   Integer ->
   ProbabilityPDA
     Rational
-    (Either Bool (ABC, Integer))
+    (Either Int (ABC, Integer))
     (Maybe ABC, Integer, Integer)
     ABC
     (Bottomed ())
@@ -58,10 +57,10 @@ pdaEQ k =
     }
   where
     _startSymbol = Bottom
-    _startState = Left False
-    _finalStates = [Left False, Left True]
+    _startState = Left 1
+    _finalStates = [Left 1, Left 2]
     _transRead = \case
-      (Left False, A) ->
+      (Left 1, A) ->
         let f x = Right (Nothing, x, undefined)
          in f <$> Dist.uniform [1 .. fromIntegral k]
       (Right (A, x), A) ->
@@ -74,7 +73,7 @@ pdaEQ k =
         pure $ Right (Just C, x, succ x)
       (Right (C, x), C) ->
         pure $ Right (Just C, x, succ x)
-      _ -> Dist.fromFreqs empty
+      _ -> pure $ Left (Left 0, [])
     _transPop = \case
       ((Nothing, x, _), Bottom) ->
         pure $ Left (Right (A, x), [Bottom])
@@ -82,12 +81,12 @@ pdaEQ k =
         pure $ Left (Right (A, x), [SSymbol (), t])
       ((Just B, x, _), t) ->
         pure $ Left (Right (B, x), genericReplicate x (SSymbol ()) <> [t])
-      ((Just C, x, y), SSymbol ()) ->
-        case pred y of
-          0 -> pure $ Left (Right (C, x), [])
-          y' -> pure $ Right (Just C, x, y')
-      ((Just C, _, _), Bottom) ->
-        pure $ Left (Left True, [Bottom])
+      ((Just C, x, y), SSymbol ())
+        | y == 1 -> pure $ Left (Right (C, x), [])
+        | otherwise -> pure $ Right (Just C, x, pred y)
+      ((Just C, _, y), Bottom)
+        | y == 1 -> pure $ Left (Left 2, [Bottom])
+        | otherwise -> pure $ Left (Left 0, [Bottom])
       c -> error $ "invalid pop state / stack input " ++ show c
 
 {- Bibliography

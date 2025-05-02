@@ -64,10 +64,10 @@ pfaStochastic = MonadicFA {trans = _trans, start = _start, final = _final}
     _start = 1
     _final = [1]
     _trans = \case
-      (1, I) -> Dist.fromFreqs [(1, 1 % 2), (2, 1 % 2)]
-      (2, I) -> Dist.fromFreqs [(2, 1 % 1)]
-      (2, O) -> Dist.fromFreqs [(1, 1 % 1)]
-      _ -> Dist.fromFreqs []
+      (1, I) -> Dist.uniform [1, 2]
+      (2, I) -> pure 2
+      (2, O) -> pure 1
+      _ -> pure 0
 
 {- Bibliography
  - ~~~~~~~~~~~~
