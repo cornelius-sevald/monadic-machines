@@ -18,8 +18,8 @@ import Test.QuickCheck
 spec :: Spec
 spec = do
   describe "Example ProbabilityFAs" $ do
-    context "With L = { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 1/2 }" $ do
-      let η = 1 % 2
+    context "With L = { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 2/3 }" $ do
+      let η = 2 % 3
       let (lang, langComp) = langStochastic η
       let pfa = pfaStochastic
       prop "accepts strings in L" $ do
@@ -27,7 +27,7 @@ spec = do
       prop "rejects strings not in L" $ do
         (`shouldSatisfy` (not . accepts pfa η)) <$> langComp
 
--- | The language { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 1/2 }.
+-- | The language { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.
 --
 -- It is a non-regular, but stochastic language.
 -- Taken from [1].
@@ -55,7 +55,7 @@ langStochastic η = (lang, langComp)
       pure (if inL then Left word else Right word)
 
 -- | A probability FA that recognizes the non-regular stochastic language
--- { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 1/2 }.
+-- { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.
 --
 -- Taken from [1].
 pfaStochastic :: ProbabilityFA Rational Bit Int
