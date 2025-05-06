@@ -1,64 +1,68 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 
-module Automata.PushDown.Monadic.ProbabilitySpec where
+module Automata.PushDown.Monadic.PropositionSpec where
 
 import qualified Automata.PushDown.Monadic as MPDA
-import Automata.PushDown.Monadic.Probability (ProbabilityPDA)
-import qualified Automata.PushDown.Monadic.Probability as ProbabilityPDA
+import Automata.PushDown.Monadic.Proposition (PropositionPDA)
+import qualified Automata.PushDown.Monadic.Proposition as PropositionPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
+import Data.Logic.Proposition
 import Data.NAry (NAry)
 import qualified Data.NAry as NAry
-import Data.Ratio
 import qualified Data.Set as Set
-import GHC.TypeLits
-import qualified Numeric.Probability.Distribution as Dist
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.Util
 
 spec :: Spec
 spec = do
-  describe "Example ProbabilityPDAs" $ do
-    context "With L = { AⁿBⁿCⁿ | n ≥ 0 } (the EQ lang)" $ do
-      let k = 3 :: NAry 3
-      let η = 1 % fromIntegral k
+  describe "Example PropositionPDAs" $ do
+    context "With L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
       let (lang, langComp) = (langEQ, langCompEQ)
-      let pda = pdaEQ k
+      let pda = pdaEQ
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        (`shouldSatisfy` PropositionPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+        (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> langComp
     context "With L = { x#y | x ∈ EQ, y ∈ complement(EQ) }" $ do
-      let k = 3 :: NAry 3
-      let η = 1 % fromIntegral k
       let (lang, langComp) = (langEQNonEQ, langCompEQNonEQ)
-      let pda = pdaEQNonEQ k
+      let pda = pdaEQNonEQ
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        (`shouldSatisfy` PropositionPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+        (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> langComp
+  describe "The 'invert' function" $ do
+    context "With L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
+      let (lang, langComp) = (langEQ, langCompEQ)
+      let pda = PropositionPDA.invert pdaEQ
+      prop "accepts strings not L" $ do
+        (`shouldSatisfy` PropositionPDA.accepts pda) <$> langComp
+      prop "rejects strings in L" $ do
+        (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> lang
+    context "With L = { x#y | x ∈ EQ, y ∈ complement(EQ) }" $ do
+      let (lang, langComp) = (langEQNonEQ, langCompEQNonEQ)
+      let pda = PropositionPDA.invert pdaEQNonEQ
+      prop "accepts strings not in L" $ do
+        (`shouldSatisfy` PropositionPDA.accepts pda) <$> langComp
+      prop "rejects strings in L" $ do
+        (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> lang
 
--- | Probabilistic PDA that recognizes
--- the EQ language { AⁿBⁿCⁿ | n ≥ 0 }
--- with false positive rate bounded by 1/k.
+-- | Proposition PDA that recognizes
+-- the EQ language { AⁿBⁿCⁿ | n ≥ 0 }.
 --
--- The construction is based on the description in [1, p. 987].
+-- The construction is based on the description
+-- of a probabilistic PDA in [1, p. 987].
 pdaEQ ::
-  (KnownNat n, KnownNat (n + 1)) =>
-  NAry n ->
-  ProbabilityPDA
-    Rational
-    (Either (Maybe (NAry 2)) (ABC, NAry n))
-    (Maybe ABC, NAry n, NAry (n + 1))
+  PropositionPDA
+    (Either (Maybe (NAry 2)) (ABC, NAry 2))
+    (Maybe ABC, NAry 2, NAry 3)
     ABC
     (Bottomed ())
-pdaEQ k =
+pdaEQ =
   MPDA.MonadicPDA
     { MPDA.startSymbol = _startSymbol,
       MPDA.startState = _startState,
@@ -73,7 +77,7 @@ pdaEQ k =
     _transRead = \case
       (Left (Just 1), A) ->
         let f x = Right (Nothing, x, undefined)
-         in f <$> Dist.uniform [1 .. k]
+         in pure (f 1) :/\: pure (f 2)
       (Right (A, x), A) ->
         pure $ Right (Just A, x, undefined)
       (Right (A, x), B) ->
@@ -101,13 +105,12 @@ pdaEQ k =
         | otherwise -> pure $ Left (Left Nothing, [Bottom])
       c -> error $ "invalid pop state / stack input " ++ show c
 
--- | Probabilistic PDA that recognizes
--- the language { x#y | x ∈ EQ, y ∈ comp(EQ) }
--- with false positive chance bounded by (1/k).
+-- | Proposition PDA that recognizes
+-- the language { x#y | x ∈ EQ, y ∈ comp(EQ) }.
 --
--- This demonstrates that probabilistic PDAs can recognize
+-- This demonstrates that proposition (i.e. alternating) PDAs can recognize
 -- languages that are neither in CFL nor co-CFL.
-pdaEQNonEQ k = pdaEQ k `ProbabilityPDA.concatenateMarked` ProbabilityPDA.invert (pdaEQ k)
+pdaEQNonEQ = pdaEQ `PropositionPDA.concatenateMarked` PropositionPDA.invert pdaEQ
 
 {- Bibliography
  - ~~~~~~~~~~~~

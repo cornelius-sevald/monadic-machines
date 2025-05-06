@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -71,7 +72,7 @@ relax :: forall n m proxy. (KnownNat n, KnownNat m, n <= m) => NAry n -> proxy m
 relax (Ith# i) _ = Ith# i
 
 safeSucc :: (KnownNat n) => NAry n -> NAry (n + 1)
-safeSucc (Ith# i) = Ith# i
+safeSucc (Ith# i) = Ith# (succ i)
 
 safePred :: (KnownNat n) => NAry n -> Maybe (NAry (n - 1))
 safePred (Ith# 1) = Nothing

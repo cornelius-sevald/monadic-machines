@@ -52,9 +52,15 @@ invert m = m {finalStates = complement $ finalStates m}
   where
     complement = (Set.fromList universeF `Set.difference`)
 
--- | Concatenate two PPDAs M1 and M2 with a dediacted
+-- | Concatenate two PPDAs M1 and M2 with a dedicated
 -- marker symbol `#` between, such that `concatenateMarked M1 M2`
--- recognizes the language { x#y | x ∈ Σ*, y ∈ Σ*, M1 accepts x, M2 accepts y }.
+-- recognizes, with cut-point η the language
+-- { x#y | x ∈ Σ*
+--       , y ∈ Σ*
+--       , M1 accepts x w. cut-point η₁
+--       , M2 accepts y w. cut point η₂
+--       , η ≤ η₁ * η₂
+-- }
 --
 -- While the CFL is closed under concatenation,
 -- I don't believe that this is the case for the stochastic CFL,
@@ -85,24 +91,18 @@ concatenateMarked m1 m2 =
     _finalStates = Set.map Right (finalStates m2)
     _transRead = \case
       -- In a read state from M1 with input a, simulate δ_read of M1.
-      (Left r, Just a) -> do
-        res <- transRead m1 (r, a)
-        let wrap = (Left *** fmap Left) +++ (Just . Left)
-        pure $ wrap res
+      (Left r, Just a) -> wrapL <$> transRead m1 (r, a)
       -- In a read state from M2 with input a, simulate δ_read of M2.
-      (Right r, Just a) -> do
-        res <- transRead m2 (r, a)
-        let wrap = (Right *** fmap Right) +++ (Just . Right)
-        pure $ wrap res
+      (Right r, Just a) -> wrapR <$> transRead m2 (r, a)
       -- In a read state from M1 with marker symbol,
       -- go to the start state of M2 with its start symbol
       -- iff. the read state is a final state.
       -- Otherwise, reject the input.
       (Left r, Nothing)
-        | r `Set.member` finalStates m1 -> do
-            let q = Right $ startState m2
-                ts = [Right $ startSymbol m2]
-            pure $ Left (q, ts)
+        | r `Set.member` finalStates m1 ->
+            let q = startState m2
+                ts = [startSymbol m2]
+             in pure $ wrapR $ Left (q, ts)
         | otherwise -> pure dead
       -- In a read state from M2 with the marker symbol,
       -- we reject the input.
@@ -110,22 +110,16 @@ concatenateMarked m1 m2 =
     _transPop = \case
       -- In a pop state from M1 with stack symbol from M1.
       -- We simulate δ_pop of M1.
-      (Just (Left p), Left t) -> do
-        res <- transPop m1 (p, t)
-        let wrap = (Left *** fmap Left) +++ (Just . Left)
-        pure $ wrap res
+      (Just (Left p), Left t) -> wrapL <$> transPop m1 (p, t)
       -- In a pop state from M2 with stack symbol from M2.
       -- We simulate δ_pop of M2.
-      (Just (Right p), Right t) -> do
-        res <- transPop m2 (p, t)
-        let wrap = (Right *** fmap Right) +++ (Just . Right)
-        pure $ wrap res
+      (Just (Right p), Right t) -> wrapR <$> transPop m2 (p, t)
       -- In a pop state from M1 with stack symbol from M2.
       -- This should be impossible, so we raise an exception
       -- if it somehow does happen.
       (Just (Left _), Right _) ->
         let msg =
-              "concatenateMarked:"
+              "Automata.PushDown.Monadic.Probability.concatenateMarked:"
                 <> " In pop state of M1 with stack symbol from M2."
                 <> " This should not be possible."
          in error msg
@@ -135,4 +129,6 @@ concatenateMarked m1 m2 =
       (Just (Right _), Left _) -> pure dead
       -- A dead state.
       (Nothing, _) -> pure dead
+    wrapL = (Left *** fmap Left) +++ (Just . Left)
+    wrapR = (Right *** fmap Right) +++ (Just . Right)
     dead = Right Nothing

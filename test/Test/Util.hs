@@ -111,21 +111,27 @@ langCompRepeated = mkLangGen (not . repeated)
       let n = length w
        in even n && and (zipWith (==) w $ drop (n `div` 2) w)
 
+-- | { AⁿBⁿCⁿ | n ≥ 0 } and its complement.
+--
+-- This language is not in CFL, but its complement is.
 langEQ, langCompEQ :: Gen [ABC]
 langEQ = do
-  n <- arbitrary :: Gen Integer
+  n <- getNonNegative <$> arbitrary :: Gen Integer
   let as = genericReplicate n A
       bs = genericReplicate n B
       cs = genericReplicate n C
   pure $ as <> bs <> cs
 langCompEQ = oneof [gen1, gen2]
   where
+    -- Generator for *any* string not in EQ.
     gen1 = mkLangGen (not . eq)
+    -- Strings of the form { A^i B^j C^j | ¬(i = j = k) }
     gen2 = do
-      w <- suchThat langEQ (not . null)
-      let n = length w
-      i <- chooseInt (0, n - 1)
-      pure $ take i w <> drop (i + 1) w
+      (i, j, k) <- arbitrary `suchThat` (\(i, j, k) -> (i /= j) || (i /= k))
+      let as = genericReplicate (getNonNegative i :: Integer) A
+          bs = genericReplicate (getNonNegative j) B
+          cs = genericReplicate (getNonNegative k) C
+      pure $ as <> bs <> cs
     eq w =
       let k = length w
           (n, r) = k `quotRem` 3
@@ -136,6 +142,26 @@ langCompEQ = oneof [gen1, gen2]
             && all (== A) as
             && all (== B) bs
             && all (== C) cs
+
+-- | { x#y | x ∈ EQ, y ∈ comp(EQ) } and its complement.
+--
+-- As EQ is not in CFL, then this language is clearly
+-- neither in CFL or co-CFL.
+langEQNonEQ, langCompEQNonEQ :: Gen [Maybe ABC]
+langEQNonEQ = do
+  l <- langEQ
+  lComp <- langCompEQ
+  pure $ fmap Just l <> [Nothing] <> fmap Just lComp
+langCompEQNonEQ = gen
+  where
+    -- Strings of the form { x#y } where (x, y) are members of
+    -- one of { EQ × EQ, comp(EQ) × EQ, comp(EQ) × comp(EQ) },
+    -- chosen at random.
+    gen = do
+      (b1, b2) <- arbitrary `suchThat` (\(b1, b2) -> not (b1 && not b2))
+      l1 <- if b1 then langEQ else langCompEQ
+      l2 <- if b2 then langEQ else langCompEQ
+      pure $ fmap Just l1 <> [Nothing] <> fmap Just l2
 
 {- Creating automata from arbitrary values. -}
 

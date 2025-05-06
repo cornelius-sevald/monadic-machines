@@ -6,7 +6,17 @@
 
 -- | Monadic pushdown automaton with the `List` monad.
 -- Equivalent to a non-deterministic PDA.
-module Automata.PushDown.Monadic.List where
+module Automata.PushDown.Monadic.List
+  ( ListPDA,
+    acceptsAngelig,
+    acceptsDemonic,
+    invert,
+    union,
+    intersection,
+    toSipserNPDA,
+    fromSipserNPDA,
+  )
+where
 
 import Automata.PushDown.FPDA (PopState (..), ReadState (..))
 import Automata.PushDown.Monadic
@@ -40,19 +50,37 @@ invert m = m {finalStates = complement $ finalStates m}
   where
     complement xs = Set.fromList universeF `Set.difference` xs
 
--- | For a ListPDA @m1@ and @m2@, both with alphabet Σ,
+-- | For ListPDA @m1@ and @m2@, both with alphabet Σ,
 -- construct a new ListPDA @m@ such that, for string @w@ ∈ Σ*,
 -- @m@ accepts @w@ with angelic non-determinism iff.
--- either @m@ or @m@ (or both) accept @m@ with angelic non-determinism.
---
--- TODO: Test, and see if I can make a similar 'intersect' function for
--- demonic non-determinism.
+-- either @m1@ or @m2@ (or both) accept @w@ with angelic non-determinism.
 union ::
   (Ord r1, Ord r2) =>
   ListPDA r1 p1 a t1 ->
   ListPDA r2 p2 a t2 ->
   ListPDA (Maybe (Either r1 r2)) (Either p1 p2) a (These t1 t2)
-union m1 m2 =
+union = combinePDAs (||)
+
+-- | For ListPDA @m1@ and @m2@, both with alphabet Σ,
+-- construct a new ListPDA @m@ such that, for string @w@ ∈ Σ*,
+-- @m@ accepts @w@ with demonic non-determinism iff.
+-- both @m1@ and @m2@ accept @w@ with demonic non-determinism.
+intersection ::
+  (Ord r1, Ord r2) =>
+  ListPDA r1 p1 a t1 ->
+  ListPDA r2 p2 a t2 ->
+  ListPDA (Maybe (Either r1 r2)) (Either p1 p2) a (These t1 t2)
+intersection = combinePDAs (&&)
+
+-- | Generalized function for combining Proposition PDAs,
+-- e.g. for implementing union (with '(||)') or intersection (with '(&&)').
+combinePDAs ::
+  (Ord r1, Ord r2) =>
+  (Bool -> Bool -> Bool) ->
+  ListPDA r1 p1 a t1 ->
+  ListPDA r2 p2 a t2 ->
+  ListPDA (Maybe (Either r1 r2)) (Either p1 p2) a (These t1 t2)
+combinePDAs combB m1 m2 =
   MonadicPDA
     { startSymbol = _startSymbol,
       startState = _startState,
@@ -67,23 +95,24 @@ union m1 m2 =
     -- we put both as the designated start symbol.
     _startSymbol = These (startSymbol m1) (startSymbol m2)
     -- The final states is the union of the final states of M1 and M2,
-    -- as well as the designated 'Nothing' start state if either of
-    -- the start states of M1 or M2 is a final state.
+    -- and potentially the designated 'Nothing' start state,
+    -- depending on if the start states of M1 or M2 is a final state
+    -- (determined with `combB`).
     _finalStates =
       let ssL = startState m1
           ssR = startState m2
           fsL = finalStates m1
           fsR = finalStates m2
-       in Set.map (Just . Left) fsL
+       in Set.fromList [_startState | (ssL `Set.member` fsL) `combB` (ssR `Set.member` fsR)]
+            `Set.union` Set.map (Just . Left) fsL
             `Set.union` Set.map (Just . Right) fsR
-            `Set.union` Set.fromList [_startState | ssL `Set.member` fsL || ssR `Set.member` fsR]
     _transRead = \case
       -- When reading an input symbol in the designated start state,
       -- we non-deterministically choose the read transition from
       -- either M1 or M2 in their respecitve start states.
       (Nothing, a) ->
         let (ql, qr) = (startState m1, startState m2)
-         in transReadL (ql, a) <> transReadR (qr, a)
+         in transReadL (ql, a) ++ transReadR (qr, a)
       -- When in a read state in M1, we use the read transition function of M1...
       (Just (Left q), a) -> transReadL (q, a)
       -- ... and conversely for M2.
@@ -100,16 +129,24 @@ union m1 m2 =
       (Right q, These _ t) -> transPopR (q, t)
       -- It should not be possible to be in a situation where
       -- we are in a pop state of M1 with only a stack symbol from M2.
-      (Left _, That _) -> error "In pop state of M1 with only stack symbol from M2."
+      (Left _, That _) ->
+        let msg =
+              "Automata.PushDown.Monadic.List.combinePDAs: "
+                <> "In pop state of M1 with only stack symbol from M2."
+         in error msg
       -- ... and similarly for M2.
-      (Right _, This _) -> error "In pop state of M2 with only stack symbol from M1."
+      (Right _, This _) ->
+        let msg =
+              "Automata.PushDown.Monadic.List.combinePDAs: "
+                <> "In pop state of M2 with only stack symbol from M1."
+         in error msg
     -- Helper functions
     transReadL = transL (transRead m1)
     transReadR = transR (transRead m2)
     transPopL = transL (transPop m1)
     transPopR = transR (transPop m2)
-    transL δ = map (((Just . Left) *** map (eitherThese . Left)) +++ Left) . δ
-    transR δ = map (((Just . Right) *** map (eitherThese . Right)) +++ Right) . δ
+    transL δ = fmap (((Just . Left) *** fmap (eitherThese . Left)) +++ Left) . δ
+    transR δ = fmap (((Just . Right) *** fmap (eitherThese . Right)) +++ Right) . δ
     eitherThese :: Either a b -> These a b
     eitherThese = either This That
 
