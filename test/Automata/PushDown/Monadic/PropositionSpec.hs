@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 
 module Automata.PushDown.Monadic.PropositionSpec where
@@ -10,6 +11,7 @@ import Automata.PushDown.Monadic.Proposition (PropositionPDA)
 import qualified Automata.PushDown.Monadic.Proposition as PropositionPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
+import qualified Data.Logic.NormalForm as NF
 import Data.Logic.Proposition
 import Data.NAry (NAry)
 import qualified Data.NAry as NAry
@@ -35,6 +37,23 @@ spec = do
         (`shouldSatisfy` PropositionPDA.accepts pda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> langComp
+    -- The 3-SAT PDA takes too long to run for me to
+    -- include it in every test run, but it does seem to work.
+    before_ (pendingWith "Takes too long to run") $
+      context "With L = 3-SAT" $ do
+        let maxAtoms = 5
+            (lang', langComp') = (lang3SAT maxAtoms, langComp3SAT maxAtoms)
+            pda = pda3SAT
+            process l =
+              case l of
+                NF.Variable x -> [Left x, Right True]
+                NF.Negation x -> [Left x, Right False]
+            lang = concatMap process <$> lang'
+            langComp = concatMap process <$> langComp'
+        prop "accepts strings in L" $ do
+          (`shouldSatisfy` PropositionPDA.accepts pda) <$> lang
+        prop "rejects strings not in L" $ do
+          (`shouldNotSatisfy` PropositionPDA.accepts pda) <$> langComp
   describe "The 'invert' function" $ do
     context "With L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
       let (lang, langComp) = (langEQ, langCompEQ)
@@ -111,6 +130,80 @@ pdaEQ =
 -- This demonstrates that proposition (i.e. alternating) PDAs can recognize
 -- languages that are neither in CFL nor co-CFL.
 pdaEQNonEQ = pdaEQ `PropositionPDA.concatenateMarked` PropositionPDA.invert pdaEQ
+
+{- Type- and pattern synonyms that make the pda3SAT more clear. -}
+type Polarity = Bool
+
+pattern Pos, Neg :: Bool
+pattern Pos = True
+pattern Neg = False
+
+pattern Read :: a -> Either a b
+pattern Read a = Left a
+
+pattern Pop :: b -> Either a b
+pattern Pop a = Right a
+
+-- | Proposition PDA that solves 3-SAT.
+--
+-- NOTE: This cheats, by having both Σ, Γ,
+-- and the set of pop state be non-finite sets.
+-- This *should* be fixable by encoding the atoms as
+-- e.g. unary integers, but that would make this PDA
+-- way more complicated.
+-- Additionally, it takes so long to run anyway
+-- that it is not practical.
+pda3SAT ::
+  PropositionPDA
+    (Either (Either (NAry 3, Bool) (NAry 3, Bool, Bool)) Bool)
+    (Either (NAry 3, Integer) (NAry 3), Bool, Bool)
+    (Either Integer Bool)
+    (Bottomed (Either Integer Bool))
+pda3SAT =
+  MPDA.MonadicPDA
+    { MPDA.startSymbol = _startSymbol,
+      MPDA.startState = _startState,
+      MPDA.finalStates = _finalStates,
+      MPDA.transRead = _transRead,
+      MPDA.transPop = _transPop
+    }
+  where
+    _startSymbol = Bottom
+    _startState = Left $ Left (1, False)
+    _finalStates = [_startState, Right True]
+    _transRead = \case
+      (Right True, _) -> accept
+      (Right False, _) -> reject
+      (Left (Left (n, sat)), Left x) ->
+        let next polarity = pure $ Pop (Left (n, x), polarity, sat)
+         in next Pos :\/: next Neg
+      (Left (Right (n, polarity, sat)), Right polarity')
+        | n == 3 ->
+            let sat' = sat || (polarity == polarity')
+             in if sat'
+                  then pure $ Read (_startState, [])
+                  else reject
+        | otherwise ->
+            let sat' = sat || (polarity == polarity')
+             in pure $ Read (Left $ Left (succ n, sat'), [])
+      _ -> undefined
+    _transPop = \case
+      ((Left (n, x), polarity, sat), Bottom) ->
+        let push = pure $ Read (Left $ Right (n, polarity, sat), [SSymbol $ Left x, SSymbol $ Right polarity, Bottom])
+            pass = pure $ Read (Left $ Right (n, polarity, sat), [Bottom])
+         in push :/\: pass
+      ((Left (n, x), polarity, sat), SSymbol (Left y)) ->
+        let check =
+              if x /= y
+                then accept
+                else pure $ Pop (Right n, polarity, sat)
+            pass = pure $ Read (Left $ Right (n, polarity, sat), [SSymbol $ Left y])
+         in check :/\: pass
+      ((Right _, polarity, _), SSymbol (Right polarity')) ->
+        if polarity == polarity' then accept else reject
+      _ -> undefined
+    accept = pure $ Read (Right True, [])
+    reject = pure $ Read (Right False, [])
 
 {- Bibliography
  - ~~~~~~~~~~~~

@@ -24,6 +24,10 @@ evalLit :: Literal Bool -> Bool
 evalLit (Variable x) = x
 evalLit (Negation x) = not x
 
+getAtom :: Literal a -> a
+getAtom (Variable x) = x
+getAtom (Negation x) = x
+
 instance Applicative Literal where
   pure = Variable
   liftA2 f a b =
@@ -114,6 +118,10 @@ newtype CNF a = CNF {getCNF :: Conjunction (Disjunction (Literal a))}
 evalCNF :: CNF Bool -> Bool
 evalCNF (CNF p) = evalConj $ ordFmap (evalDisj . ordFmap evalLit) p
 
+-- | Get a set of all the atoms of a CNF.
+cnfAtoms :: (Ord a) => CNF a -> Set a
+cnfAtoms = Set.map getAtom . Set.unions . Set.map getDisj . getConj . getCNF
+
 toDNF :: (Ord a) => CNF a -> DNF a
 toDNF = fromList . choices . toList
 
@@ -125,6 +133,56 @@ negateCNF cnf =
     flipLit a = case a of Variable x -> Negation x; Negation x -> Variable x
     conjToDisj = Disj . getConj
     disjToConj = Conj . getDisj
+
+-- | Is this DNF satisfiable?
+cnfSatisifiable :: (Ord a) => CNF a -> Bool
+cnfSatisifiable cnf =
+  let f vs = evalCNF $ ordFmap (`Set.member` vs) cnf
+   in or $ Set.map f $ Set.powerSet $ cnfAtoms cnf
+
+-- | Convert a CNF to an *equisatisfiable* 3-CNF.
+to3CNF :: CNF Integer -> [[Literal Integer]]
+to3CNF cnf =
+  let cnf' = toList cnf
+      cnf3 = snd $ foldl transformClause (maxVar cnf + 1, []) cnf'
+   in cnf3
+  where
+    -- Given a fresh variable counter, transforms one clause,
+    transformClause :: (Integer, [[Literal Integer]]) -> [Literal Integer] -> (Integer, [[Literal Integer]])
+    transformClause (count, acc) clause
+      | null clause = unsat count
+      | length clause == 3 = (count, clause : acc)
+      | length clause < 3 = (count, padClause clause : acc)
+      | otherwise =
+          let (count', clauses) = breakClause clause count
+           in (count', clauses ++ acc)
+    -- Pads a clause with repeated literals (does not affect satisfiability)
+    padClause :: [Literal Integer] -> [Literal Integer]
+    padClause lits = take 3 (lits ++ repeat (head lits))
+    -- Splits a clause with more than 3 literals using new variables
+    breakClause :: [Literal Integer] -> Integer -> (Integer, [[Literal Integer]])
+    breakClause (l1 : l2 : l3 : rest) count =
+      let newVar = count
+          firstClause = [l1, l2, Variable newVar]
+          (finalCounter, remainingClauses) = buildChains l3 rest (count + 1)
+       in (finalCounter, firstClause : remainingClauses)
+    breakClause _ count = (count, []) -- shouldn't happen
+    -- Helper to chain long clauses into 3-literal clauses
+    buildChains :: Literal Integer -> [Literal Integer] -> Integer -> (Integer, [[Literal Integer]])
+    buildChains l [] count = (count, [[Negation (count - 1), l, l]])
+    buildChains l (x : xs) count =
+      let newVar = count
+          clause = [Negation (count - 1), l, Variable newVar]
+          (finalCounter, restClauses) = buildChains x xs (count + 1)
+       in (finalCounter, clause : restClauses)
+    -- A set of clauses that are unsatisfiable
+    unsat count =
+      let clause1 = Variable <$> [count, count, count]
+          clause2 = Negation <$> [count, count, count]
+       in (count + 1, [clause1, clause2])
+    -- Find the highest variable ID used
+    maxVar :: (Ord a, Integral a) => CNF a -> a
+    maxVar = maximum . (Set.insert 1 . cnfAtoms)
 
 {- CNF instances -}
 
@@ -156,6 +214,10 @@ newtype DNF a = DNF {getDNF :: Disjunction (Conjunction (Literal a))}
 evalDNF :: DNF Bool -> Bool
 evalDNF (DNF p) = evalDisj $ ordFmap (evalConj . ordFmap evalLit) p
 
+-- | Get a set of all the atoms of a DNF.
+dnfAtoms :: (Ord a) => DNF a -> Set a
+dnfAtoms = Set.map getAtom . Set.unions . Set.map getConj . getDisj . getDNF
+
 toCNF :: (Ord a) => DNF a -> CNF a
 toCNF = fromList . choices . toList
 
@@ -167,6 +229,12 @@ negateDNF dnf =
     flipLit a = case a of Variable x -> Negation x; Negation x -> Variable x
     conjToDisj = Disj . getConj
     disjToConj = Conj . getDisj
+
+-- | Is this DNF satisfiable?
+dnfSatisifiable :: (Ord a) => DNF a -> Bool
+dnfSatisifiable dnf =
+  let f vs = evalDNF $ ordFmap (`Set.member` vs) dnf
+   in or $ Set.map f $ Set.powerSet $ dnfAtoms dnf
 
 {- DNF instances -}
 

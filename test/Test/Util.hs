@@ -17,9 +17,12 @@ import Control.Monad (guard)
 import Data.Alphabet
 import Data.Either (isLeft)
 import Data.List (genericReplicate, uncons)
-import Data.Maybe (fromMaybe, maybeToList)
+import qualified Data.Logic.NormalForm as NF
+import Data.Maybe (fromJust, fromMaybe, maybeToList)
 import Data.NAry
+import Data.OrdFunctor (OrdFunctor (ordFmap))
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Universe.Class (Finite (..))
 import Test.QuickCheck hiding (shrink)
 
@@ -162,6 +165,21 @@ langCompEQNonEQ = gen
       l1 <- if b1 then langEQ else langCompEQ
       l2 <- if b2 then langEQ else langCompEQ
       pure $ fmap Just l1 <> [Nothing] <> fmap Just l2
+
+lang3SAT, langComp3SAT :: Int -> Gen [NF.Literal Integer]
+(lang3SAT, langComp3SAT) = (lang, langComp)
+  where
+    langEither n = do
+      let normalizeAtoms p =
+            let assoc = zip (Set.toList $ NF.cnfAtoms p) [1 ..]
+             in ordFmap (fromJust . flip lookup assoc) p
+      cnf' <- arbitrary `suchThat` (\x -> length x <= n) :: Gen (NF.CNF Integer)
+      let cnf = normalizeAtoms cnf'
+      let cnf3 = NF.to3CNF cnf
+      let side = if NF.cnfSatisifiable cnf then Left else Right
+      pure $ side $ concat cnf3
+    lang n = suchThatMap (langEither n) (either Just (const Nothing))
+    langComp n = suchThatMap (langEither n) (either (const Nothing) Just)
 
 {- Creating automata from arbitrary values. -}
 

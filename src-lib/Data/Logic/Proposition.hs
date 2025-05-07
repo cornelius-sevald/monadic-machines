@@ -9,6 +9,8 @@ import Control.Monad (ap)
 import Data.Logic.NormalForm (CNF (..), DNF (..))
 import qualified Data.Logic.NormalForm as NF
 import Data.OrdFunctor
+import Data.Set (Set)
+import qualified Data.Set as Set
 import GHC.Generics (Generic)
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen (oneof, sized)
@@ -29,6 +31,19 @@ evaluate f (p1 :/\: p2) = evaluate f p1 && evaluate f p2
 evaluate f (p1 :\/: p2) = evaluate f p1 || evaluate f p2
 evaluate _ Top = True
 evaluate _ Bot = False
+
+getVars :: (Ord v) => Proposition v -> Set v
+getVars (Var x) = Set.singleton x
+getVars (Not p) = getVars p
+getVars (p1 :/\: p2) = getVars p1 `Set.union` getVars p2
+getVars (p1 :\/: p2) = getVars p1 `Set.union` getVars p2
+getVars Top = Set.empty
+getVars Bot = Set.empty
+
+satisfiable :: (Ord v) => Proposition v -> Bool
+satisfiable p =
+  let f vs = evaluate (`Set.member` vs) p
+   in or $ Set.map f $ Set.powerSet $ getVars p
 
 fromCNF :: (Ord a) => CNF a -> Proposition a
 fromCNF (CNF cnf) =
