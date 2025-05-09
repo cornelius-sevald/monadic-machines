@@ -1,4 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Monadic pushdown automaton with the `Probability` monad.
 -- Equivalent to an probabilistic pushdown automaton.
@@ -7,10 +9,13 @@ module Automata.PushDown.Monadic.Probability
     accepts,
     invert,
     concatenateMarked,
+    fromAngelicListPDA,
   )
 where
 
 import Automata.PushDown.Monadic
+import Automata.PushDown.Monadic.List (ListPDA)
+import Automata.PushDown.Util
 import Control.Arrow
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (universeF))
@@ -42,14 +47,29 @@ accepts m η w = acceptance $ runMPDA m w
 
 -- | Invert PPDA M, such that `invert M` accepts a word
 -- iff. M rejects that word.
---
--- TODO: Test
 invert ::
-  (Finite r, Ord r) =>
+  (Finite r, Ord r, Fractional prob) =>
   ProbabilityPDA prob r p a t ->
-  ProbabilityPDA prob r p a t
-invert m = m {finalStates = complement $ finalStates m}
+  ProbabilityPDA prob (Maybe (Maybe r)) (Either p p) a (Bottomed t)
+invert m =
+  onPopEmptyStack (const $ pure (accept, [])) $
+    MonadicPDA
+      { startSymbol = _startSymbol,
+        startState = _startState,
+        finalStates = _finalStates,
+        transRead = _transRead,
+        transPop = _transPop
+      }
   where
+    _startSymbol = startSymbol m
+    _startState = Just $ startState m
+    _finalStates = Set.insert accept $ Set.map Just $ complement (finalStates m)
+    _transRead = \case
+      (Nothing, _) -> pure $ Left (accept, [])
+      (Just r, a) -> wrap $ transRead m (r, a)
+    _transPop (p, t) = wrap $ transPop m (p, t)
+    wrap = fmap $ left (first Just)
+    accept = Nothing
     complement = (Set.fromList universeF `Set.difference`)
 
 -- | Concatenate two PPDAs M1 and M2 with a dedicated
@@ -132,3 +152,76 @@ concatenateMarked m1 m2 =
     wrapL = (Left *** fmap Left) +++ (Just . Left)
     wrapR = (Right *** fmap Right) +++ (Just . Right)
     dead = Right Nothing
+
+-- | Given a ListPDA `m` and cut-point `η`,
+-- construct a ProbabilityPDA `m'` such that
+-- `m` accepts a word `w` with angelic non-determinism iff.
+-- `m'` accepts `w#` with cut-point `η`, where `#` is an end-of-input marker.
+fromAngelicListPDA ::
+  (Ord r, Fractional prob) =>
+  prob ->
+  ListPDA r p a t ->
+  ProbabilityPDA
+    prob
+    (Maybe (Either r (Bool, Bool)))
+    (Either p p)
+    (Ended a)
+    (Bottomed t)
+fromAngelicListPDA η m =
+  onPopEmptyStack (const $ rejectP False) $
+    MonadicPDA
+      { startSymbol = _startSymbol,
+        startState = _startState,
+        finalStates = _finalStates,
+        transRead = _transRead,
+        transPop = _transPop
+      }
+  where
+    _startSymbol = startSymbol m
+    _startState = Left $ startState m
+    _finalStates = [accept True, accept False]
+    _transRead = \case
+      -- If we are in a terminal state (either the `accept` or `reject` states)
+      -- and we have not read the end-of-input symbol,
+      -- then the PDA failed for another reason
+      -- (popping empty stack or empty result from transition).
+      -- In this case, we ignore any further input and stay in
+      -- the current terminal state.
+      (Right (b, False), _) -> pure $ Left (Right (b, False), [])
+      -- If we are in a terminal state
+      -- and we *have* read the end-of-input symbol,
+      -- then any further input should lead to rejection.
+      (Right (_, True), _) -> pure $ Left (Right (False, True), [])
+      (Left r, ISymbol a) -> case uniform $ transRead m (r, a) of
+        Left x -> Left <$> x
+        Right cs -> do
+          c <- cs
+          case c of
+            Left (r', ts) -> pure $ Left (Left r', ts)
+            Right p' -> pure $ Right p'
+      (Left r, End) ->
+        if r `Set.member` finalStates m
+          then pure $ Left (accept True, [])
+          else Left <$> rejectP True
+    _transPop (p, t) =
+      case uniform $ transPop m (p, t) of
+        Left x -> Left <$> x
+        Right cs -> do
+          c <- cs
+          pure $ case c of
+            Left (r', ts) -> Left (Left r', ts)
+            Right p' -> Right p'
+    -- Dedicated accept state.
+    -- The boolean signifies if we have read the end-of-input symbol.
+    accept b = Right (True, b)
+    -- Dedicated reject state.
+    -- The boolean signifies if we have read the end-of-input symbol.
+    reject b = Right (False, b)
+    withEta p q = Dist.fromFreqs [(p, η), (q, 1 - η)]
+    -- Reject with probability (1-η), and otherwise accept.
+    -- The boolean signifies if we have read the end-of-input symbol.
+    rejectP b = (,[]) <$> withEta (accept b) (reject b)
+    uniform xs =
+      if null xs
+        then Left $ rejectP False
+        else Right $ Dist.uniform xs

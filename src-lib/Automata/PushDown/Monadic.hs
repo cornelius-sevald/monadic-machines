@@ -1,8 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 
 -- | Pushdown automata generalized with a mondaic transition function.
 module Automata.PushDown.Monadic where
 
+import Automata.PushDown.Util (Bottomed (..), bottom)
+import Control.Arrow (Arrow ((***)))
 import Control.Monad (foldM)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -61,3 +64,57 @@ runMPDA m as = do
   case c_n of
     Nothing -> pure False
     Just (q, _) -> pure $ q `Set.member` finalStates m
+
+onPopEmptyStack ::
+  (Monad m, Ord r) =>
+  (p -> m (r, [t])) ->
+  MonadicPDA m r p a t ->
+  MonadicPDA m (Maybe r) (Either p p) a (Bottomed t)
+onPopEmptyStack h m =
+  MonadicPDA
+    { startSymbol = Bottom,
+      startState = _startState,
+      finalStates = _finalStates,
+      transRead = _transRead,
+      transPop = _transPop
+    }
+  where
+    _startSymbol = startSymbol m
+    _startState = Nothing
+    _finalStates =
+      let ss = startState m
+          fs = finalStates m
+       in Set.map Just fs
+            `Set.union` Set.fromList [Nothing | ss `Set.member` fs]
+    _transRead = \case
+      (Nothing, a) -> do
+        let r0 = startState m
+        let t0 = startSymbol m
+        c <- transRead m (r0, a)
+        pure $ case c of
+          Left (r', ts) -> Left (Just r', SSymbol <$> (ts <> [t0]))
+          Right p' -> Right (Left p')
+      (Just r, a) -> do
+        c <- transRead m (r, a)
+        pure $ case c of
+          Left (r', ts) -> Left (Just r', SSymbol <$> ts)
+          Right p' -> Right (Right p')
+    _transPop = \case
+      (Left p, Bottom) -> do
+        let t0 = startSymbol m
+        c <- transPop m (p, t0)
+        case c of
+          Left (r', ts) -> pure $ Left (Just r', bottom ts)
+          Right _ -> Left . (Just *** bottom) <$> h p
+      (Left _, SSymbol _) ->
+        let msg =
+              "Automata.PushDown.Monadic.onPopEmptyStack: "
+                <> "In `Left` pop state, but non-`Bottom` symbol on stack. "
+                <> "This should not be possible."
+         in error msg
+      (Right p, Bottom) -> Left . (Just *** bottom) <$> h p
+      (Right p, SSymbol t) -> do
+        c <- transPop m (p, t)
+        pure $ case c of
+          Left (r', ts) -> Left (Just r', SSymbol <$> ts)
+          Right p' -> Right (Right p')

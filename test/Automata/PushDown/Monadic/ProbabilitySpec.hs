@@ -8,9 +8,11 @@
 module Automata.PushDown.Monadic.ProbabilitySpec where
 
 import qualified Automata.PushDown.Monadic as MPDA
+import qualified Automata.PushDown.Monadic.ListSpec as ListPDASpec
 import Automata.PushDown.Monadic.Probability (ProbabilityPDA)
 import qualified Automata.PushDown.Monadic.Probability as ProbabilityPDA
-import Automata.PushDown.Util (Bottomed (..))
+import Automata.PushDown.Util (Bottomed (..), end)
+import Control.Arrow ((***))
 import Data.Alphabet
 import Data.NAry (NAry)
 import qualified Data.NAry as NAry
@@ -43,6 +45,50 @@ spec = do
         (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+  describe "the 'invert' function" $ do
+    context "With L = { AⁿBⁿCⁿ | n ≥ 0 } (the EQ lang)" $ do
+      let k = 3 :: NAry 3
+      let η = 1 % fromIntegral k
+      let (lang, langComp) = (langEQ, langCompEQ)
+      let pda = ProbabilityPDA.invert $ pdaEQ k
+      prop "accepts strings not in L" $ do
+        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+      prop "rejects strings in L" $ do
+        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+    context "With L = { x#y | x ∈ EQ, y ∈ complement(EQ) }" $ do
+      let k = 3 :: NAry 3
+      let η = 1 % fromIntegral k
+      let (lang, langComp) = (langEQNonEQ, langCompEQNonEQ)
+      let pda = ProbabilityPDA.invert $ pdaEQNonEQ k
+      prop "accepts strings not L" $ do
+        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+      prop "rejects strings in L" $ do
+        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+  describe "the 'fromAngelicListPDA' function" $
+    modifyMaxSize (`div` 3) $ do
+      let η = 2 % (3 :: Integer)
+      let endP = fmap end *** fmap end
+      context "With L = {OᵏIᵏ | k ≥ 0}" $ do
+        let (lang, langComp) = endP (langOkIk, langCompOkIk)
+        let pda = ProbabilityPDA.fromAngelicListPDA η ListPDASpec.pdaOkIk
+        prop "accepts strings in L" $ do
+          (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        prop "rejects strings not in L" $ do
+          (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+      context "With L = {w | w is a palindrome}" $ do
+        let (lang, langComp) = endP (langPalindromes, langCompPalindromes)
+        let pda = ProbabilityPDA.fromAngelicListPDA η ListPDASpec.pdaPalindromes
+        prop "accepts strings in L" $ do
+          (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        prop "rejects strings not in L" $ do
+          (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+      context "With L = {w·w | w ∈ Σ*}" $ do
+        let (lang, langComp) = endP (langRepeated, langCompRepeated)
+        let pda = ProbabilityPDA.fromAngelicListPDA η ListPDASpec.pdaNonRepeated
+        prop "accepts strings not in L" $ do
+          (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+        prop "rejects strings in L" $ do
+          (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> lang
 
 -- | Probabilistic PDA that recognizes
 -- the EQ language { AⁿBⁿCⁿ | n ≥ 0 }
