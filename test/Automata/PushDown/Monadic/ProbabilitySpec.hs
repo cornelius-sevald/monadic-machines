@@ -48,22 +48,28 @@ spec = do
   describe "the 'invert' function" $ do
     context "With L = { AⁿBⁿCⁿ | n ≥ 0 } (the EQ lang)" $ do
       let k = 3 :: NAry 3
-      let η = 1 % fromIntegral k
+      -- We set η to be 1-(1/k) and use the non-strict
+      -- acceptance function.
+      let η = 1 - (1 % fromIntegral k)
+      let acceptance = ProbabilityPDA.accepts'
       let (lang, langComp) = (langEQ, langCompEQ)
       let pda = ProbabilityPDA.invert $ pdaEQ k
       prop "accepts strings not in L" $ do
-        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+        (`shouldSatisfy` acceptance pda η) <$> langComp
       prop "rejects strings in L" $ do
-        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        (`shouldNotSatisfy` acceptance pda η) <$> lang
     context "With L = { x#y | x ∈ EQ, y ∈ complement(EQ) }" $ do
       let k = 3 :: NAry 3
-      let η = 1 % fromIntegral k
+      -- We set η to be 1-(1/k) and use the non-strict
+      -- acceptance function.
+      let η = 1 - (1 % fromIntegral k)
       let (lang, langComp) = (langEQNonEQ, langCompEQNonEQ)
       let pda = ProbabilityPDA.invert $ pdaEQNonEQ k
+      let acceptance = ProbabilityPDA.accepts'
       prop "accepts strings not L" $ do
-        (`shouldSatisfy` ProbabilityPDA.accepts pda η) <$> langComp
+        (`shouldSatisfy` acceptance pda η) <$> langComp
       prop "rejects strings in L" $ do
-        (`shouldNotSatisfy` ProbabilityPDA.accepts pda η) <$> lang
+        (`shouldNotSatisfy` acceptance pda η) <$> lang
   describe "the 'fromAngelicListPDA' function" $
     modifyMaxSize (`div` 3) $ do
       let η = 2 % (3 :: Integer)
