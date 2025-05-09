@@ -45,10 +45,30 @@ acceptsDemonic m w = acceptance $ runMPDA m w
 -- Invert a List PDA, such that List PDA @m@ accepts string @w@
 -- with angelic non-determinism iff. @invert m@ rejects @w@
 -- with *demonic* non-determinism, or the other way around.
-invert :: (Ord r, Finite r) => ListPDA r p a t -> ListPDA r p a t
-invert m = m {finalStates = complement $ finalStates m}
+invert ::
+  (Finite r, Ord r) =>
+  ListPDA r p a t ->
+  ListPDA (Maybe (Maybe r)) (Either p p) a (Bottomed t)
+invert m =
+  onPopEmptyStack (const $ pure (accept, [])) $
+    MonadicPDA
+      { startSymbol = _startSymbol,
+        startState = _startState,
+        finalStates = _finalStates,
+        transRead = _transRead,
+        transPop = _transPop
+      }
   where
-    complement xs = Set.fromList universeF `Set.difference` xs
+    _startSymbol = startSymbol m
+    _startState = Just $ startState m
+    _finalStates = Set.insert accept $ Set.map Just $ complement (finalStates m)
+    _transRead = \case
+      (Nothing, _) -> pure $ Left (accept, [])
+      (Just r, a) -> wrap $ transRead m (r, a)
+    _transPop (p, t) = wrap $ transPop m (p, t)
+    wrap = fmap $ left (first Just)
+    accept = Nothing
+    complement = (Set.fromList universeF `Set.difference`)
 
 -- | For ListPDA @m1@ and @m2@, both with alphabet Σ,
 -- construct a new ListPDA @m@ such that, for string @w@ ∈ Σ*,

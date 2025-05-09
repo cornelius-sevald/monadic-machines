@@ -13,6 +13,8 @@ import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
 import Data.Containers.ListUtils (nubOrd)
 import Data.NAry (NAry)
+import qualified Data.NAry as NAry
+import qualified Data.Set as Set
 import Data.These (These)
 import Data.Void (Void, absurd)
 import Data.Word (Word8)
@@ -44,64 +46,92 @@ spec = do
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
       let pda = pdaOkIk
-      prop "accepts strings in L" $ do
+      prop "accepts(∃) strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-      prop "rejects strings not in L" $ do
+      prop "rejects(∃) strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
     context "With L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let pda = pdaPalindromes
-      prop "accepts strings in L" $ do
+      prop "accepts(∃) strings in L" $ do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-      prop "rejects strings not in L" $ do
+      prop "rejects(∃) strings not in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
     context "With L = {w·w | w ∈ Σ*}" $
       modifyMaxSize (`div` 2) $ do
         let (lang, langComp) = (langRepeated, langCompRepeated)
         let pda = pdaNonRepeated
-        prop "accepts strings not in L" $ do
+        prop "accepts(∃) strings not in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-        prop "rejects strings in L" $ do
+        prop "rejects(∃) strings in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+    context "With L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
+      let (lang, langComp) = (langEQ, langCompEQ)
+      let pda = pdaEQ
+      prop "accepts(∀) strings in L" $ do
+        (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
+      prop "rejects(∀) strings not in L" $ do
+        (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
   describe "The 'invert' function" $ do
     context "With the palindrome PDA and L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let pda = ListPDA.invert pdaPalindromes
-      prop "accepts (w. demonic non-det.) strings not in L" $ do
+      prop "accepts(∀) (w. demonic non-det.) strings not in L" $ do
         (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
-      prop "rejects (w. demonic non-det.) strings in L" $ do
+      prop "rejects(∀) (w. demonic non-det.) strings in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> lang
     context "With the non-repeated PDA and L = {w·w | w ∈ Σ*}" $
       modifyMaxSize (`div` 2) $ do
         let (lang, langComp) = (langRepeated, langCompRepeated)
         let pda = ListPDA.invert pdaNonRepeated
-        prop "accepts (w. demonic non-det.) strings in L" $ do
+        prop "accepts(∀) (w. demonic non-det.) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
-        prop "rejects (w. demonic non-det.) strings not in L" $ do
+        prop "rejects(∀) (w. demonic non-det.) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
+    context "With the EQ PDA and L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
+      let (lang, langComp) = (langEQ, langCompEQ)
+      let pda = ListPDA.invert pdaEQ
+      prop "accepts(∃) (w. demonic non-det.) strings not in L" $ do
+        (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+      prop "rejects(∃) (w. demonic non-det.) strings in L" $ do
+        (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+    context "For a random List PDA M" $
+      -- We have to reduce the size a crazy amount,
+      -- but otherwise it runs for (maybe literally) ages.
+      modifyMaxSize (`div` 20) $ do
+        prop "M accepts(∃) iff. invert M rejects(∀)" $ do
+          \m' w ->
+            let m = mkMPDA nubOrd m' :: ListPDA.ListPDA R P A T
+                mInv = ListPDA.invert m
+             in ListPDA.acceptsAngelig m w `shouldNotBe` ListPDA.acceptsDemonic mInv w
+        prop "M accepts(∀) iff. invert M rejects(∃)" $ do
+          \m' w ->
+            let m = mkMPDA nubOrd m' :: ListPDA.ListPDA R P A T
+                mInv = ListPDA.invert m
+             in ListPDA.acceptsDemonic m w `shouldNotBe` ListPDA.acceptsAngelig mInv w
   describe "fromSipserNPDA" $
     modifyMaxSize (`div` 10) $ do
       context "With an endlessly looping Sipser NPDA" $ do
         let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaLoop
-        it "rejects the empty string" $ do
+        it "rejects(∃) the empty string" $ do
           [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
-        prop "accepts all strings of length 1" $
+        prop "accepts(∃) all strings of length 1" $
           \n -> [n] `shouldSatisfy` ListPDA.acceptsAngelig pda
-        prop "rejects all strings of length >1" $
+        prop "rejects(∃) all strings of length >1" $
           \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
         let (lang, langComp) = (langOkIk, langCompOkIk)
         let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOkIk
-        prop "accepts strings in L" $ do
+        prop "accepts(∃) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-        prop "rejects strings not in L" $ do
+        prop "rejects(∃) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a NPDA recognizing L = {w | w is a palindrome}" $ do
         let (lang, langComp) = (langPalindromes, langCompPalindromes)
         let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaPalindromes
-        prop "accepts strings in L" $ do
+        prop "accepts(∃) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
-        prop "rejects strings not in L" $ do
+        prop "rejects(∃) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a random Sipser NPDA" $
         -- We have to reduce the size a crazy amount,
@@ -114,14 +144,14 @@ spec = do
                   m = ListPDA.fromSipserNPDA snpda
                in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
   describe "toSipserNPDA" $ do
-    context "For a List PDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
+    context "For a List PDA recognizing(∃) L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
       let snpda = ListPDA.toSipserNPDA pdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` SNPDA.accepts snpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
-    context "For a List PDA recognizing L = {w | w is a palindrome}" $ do
+    context "For a List PDA recognizing(∃) L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let snpda = ListPDA.toSipserNPDA pdaPalindromes
       prop "accepts strings in L" $ do
@@ -132,7 +162,7 @@ spec = do
       -- We have to reduce the size a crazy amount,
       -- but otherwise it runs for (maybe literally) ages.
       modifyMaxSize (`div` 25) $ do
-        prop "recognizes the same language" $ do
+        prop "recognizes(∃) the same language" $ do
           \m' w ->
             let m = mkMPDA nubOrd m' :: ListPDA.ListPDA R P A T
                 sdpda = ListPDA.toSipserNPDA m
@@ -267,4 +297,57 @@ pdaNonRepeated = m1 `ListPDA.union` m2
         [Left (Left 4, [])]
       (Left 4, Bottom) ->
         [Left (Left 5, [])]
+      c -> error $ "invalid pop state / stack input " ++ show c
+
+-- | List PDA that recognizes the EQ language { AⁿBⁿCⁿ | n ≥ 0 }
+-- when using *demonic non-determinism*.
+--
+-- The construction is based on the description in [1, p. 987].
+pdaEQ ::
+  ListPDA
+    (Either (Maybe (NAry 2)) (ABC, NAry 2))
+    (Maybe ABC, NAry 2, NAry 3)
+    ABC
+    (Bottomed ())
+pdaEQ =
+  MPDA.MonadicPDA
+    { MPDA.startSymbol = _startSymbol,
+      MPDA.startState = _startState,
+      MPDA.finalStates = _finalStates,
+      MPDA.transRead = _transRead,
+      MPDA.transPop = _transPop
+    }
+  where
+    _startSymbol = Bottom
+    _startState = (Left . Just) 1
+    _finalStates = Set.map (Left . Just) [1, 2]
+    _transRead = \case
+      (Left (Just 1), A) ->
+        let f x = Right (Nothing, x, undefined)
+         in f <$> [1, 2]
+      (Right (A, x), A) ->
+        pure $ Right (Just A, x, undefined)
+      (Right (A, x), B) ->
+        pure $ Right (Just B, x, undefined)
+      (Right (B, x), B) ->
+        pure $ Right (Just B, x, undefined)
+      (Right (B, x), C) ->
+        pure $ Right (Just C, x, NAry.safeSucc x)
+      (Right (C, x), C) ->
+        pure $ Right (Just C, x, NAry.safeSucc x)
+      _ -> pure $ Left (Left Nothing, [])
+    _transPop = \case
+      ((Nothing, x, _), Bottom) ->
+        pure $ Left (Right (A, x), [Bottom])
+      ((Just A, x, _), t) ->
+        pure $ Left (Right (A, x), [SSymbol (), t])
+      ((Just B, x, _), t) ->
+        pure $ Left (Right (B, x), replicate (fromIntegral x) (SSymbol ()) <> [t])
+      ((Just C, x, y), SSymbol ()) ->
+        case NAry.safePred' y of
+          Nothing -> pure $ Left (Right (C, x), [])
+          Just y' -> pure $ Right (Just C, x, y')
+      ((Just C, _, y), Bottom)
+        | y == 1 -> pure $ Left (Left $ Just 2, [Bottom])
+        | otherwise -> pure $ Left (Left Nothing, [Bottom])
       c -> error $ "invalid pop state / stack input " ++ show c
