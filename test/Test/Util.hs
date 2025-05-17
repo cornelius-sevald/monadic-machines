@@ -191,7 +191,7 @@ mkDFA (start, final, trans) =
       DFA.trans = applyFun trans
     }
 
-mkNFA :: (s, Set s, Fun (s, Maybe a) [s]) -> NFA.NFA a s
+mkNFA :: (s, Set s, Fun (s, Maybe a) (Set s)) -> NFA.NFA a s
 mkNFA (start, final, trans) =
   NFA.NFA
     { NFA.start = start,

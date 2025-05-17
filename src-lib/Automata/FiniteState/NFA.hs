@@ -29,7 +29,7 @@ data NFA a s = NFA
     -- | The set of final states F.
     final :: Set s,
     -- | The transition function δ.
-    trans :: (s, Maybe a) -> [s]
+    trans :: (s, Maybe a) -> Set s
   }
   deriving (Generic)
 
@@ -39,7 +39,7 @@ stepE nfa q = go $ Set.singleton q
   where
     f r = trans nfa (r, Nothing)
     go qs =
-      let rs = Set.fromList (concatMap f qs)
+      let rs = Set.unions $ Set.map f qs
        in if rs `Set.isSubsetOf` qs
             then qs
             else go (qs <> rs)
@@ -48,7 +48,7 @@ stepE nfa q = go $ Set.singleton q
 step :: (Ord s) => NFA a s -> s -> a -> Set s
 step nfa q x =
   let rs = stepE nfa q
-   in Set.fromList $ concatMap step1 rs
+   in Set.unions $ Set.map step1 rs
   where
     step1 r = trans nfa (r, Just x)
 
@@ -75,8 +75,8 @@ fromDFA dfa =
       trans = delta
     }
   where
-    delta (_, Nothing) = []
-    delta (q, Just x) = [DFA.trans dfa (q, x)]
+    delta (_, Nothing) = Set.empty
+    delta (q, Just x) = Set.singleton $ DFA.trans dfa (q, x)
 
 -- | Convert a NFA to an equivalent DFA.
 toDFA :: (Ord s, Finite s) => NFA a s -> DFA a (Set s)

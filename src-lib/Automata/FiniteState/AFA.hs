@@ -88,7 +88,7 @@ toNFA :: (Ord s, Finite s) => AFA a s -> NFA a (Maybe (Set s))
 toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
   where
     -- The set of starting states of the NNFA.
-    starts = [Just u | u <- universeF, start afa `Set.member` u]
+    starts = Set.fromList [Just u | u <- universeF, start afa `Set.member` u]
     -- The starting state of the NFA.
     _start = Nothing
     -- The final states of the NFA.
@@ -96,15 +96,16 @@ toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
     -- The non-ε-transitions of the NFA.
     _trans (Just qs, Just a) =
       let g' u' q = trans afa (q, a) u'
-       in [ Just qs'
-            | qs' <- universeF,
-              let u' = (`Set.member` qs'),
-              indicate (g' u') == qs
-          ]
+       in Set.fromList
+            [ Just qs'
+              | qs' <- universeF,
+                let u' = (`Set.member` qs'),
+                indicate (g' u') == qs
+            ]
     -- We connect the start state of the NFA to all start states of the NNFA
     -- with ε-transitions.
     _trans (Nothing, Nothing) = starts
-    _trans _ = []
+    _trans _ = Set.empty
 
 -- | From an n-state AFA (Q, Σ, g, q_1, F) construct an equivalent 2^(2^n)-state DFA.
 --
