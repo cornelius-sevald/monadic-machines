@@ -45,5 +45,5 @@ spec = do
     prop "recognizes the same language" $ do
       \nfa' w ->
         let nfa = mkNFA nfa'
-            afa = AFA.fromNFA nfa :: AFA A S
+            afa = AFA.fromNFA nfa :: AFA A (Maybe S)
          in AFA.accepts afa w `shouldBe` NFA.accepts nfa w

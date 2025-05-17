@@ -128,24 +128,32 @@ toDFA afa = DFA.DFA {DFA.trans = _trans, DFA.start = _start, DFA.final = _final}
        in Set.unions $ Set.map d qs
 
 -- | Convert an NFA M = (Q, Σ, δ, s_1, F)
--- to an equivalent AFA (Q, Σ, g, s_1, F'),
+-- to an equivalent AFA (Q', Σ, g, s_1, F'),
 -- where g is defined as follows:
 --
 --   g(q)(a, u) = 1 ⇔ ∃p ∈ Δ(q, a). p ∈ u.
 --
 -- where Δ(q, a) is defined as the ε-closure of δ(q, a),
--- and F' are the prefinal states of M, that is,
--- the set of states from which F is reachable while consuming no input.
+-- Q' = Q ∪ { s_0 }
+-- and F' = F ∪ { s_0 | a final state is reachable from s_0 }
 --
 -- Adapted from [2].
-fromNFA :: (Ord s, Finite s) => NFA a s -> AFA a s
+fromNFA :: (Ord s, Finite s) => NFA a s -> AFA a (Maybe s)
 fromNFA nfa = AFA {start = _start, final = _final, trans = _trans}
   where
-    _start = NFA.start nfa
-    _final = NFA.prefinal nfa
-    _trans (q, a) u =
+    _start = Nothing
+    _final =
+      let fs = NFA.final nfa
+          ss = NFA.stepE nfa $ NFA.start nfa
+       in Set.map Just fs
+            `Set.union` Set.fromList [Nothing | not (ss `Set.disjoint` fs)]
+    _trans (Nothing, a) u =
+      let ps0 = NFA.stepE nfa (NFA.start nfa)
+          ps1 = Set.unions $ Set.map (\q -> NFA.step nfa q a) ps0
+       in any u $ Set.map Just ps1
+    _trans (Just q, a) u =
       let ps = NFA.step nfa q a
-       in any u ps
+       in any u $ Set.map Just ps
 
 -- | Convert a DFA (Q, Σ, δ, s_1, F) to an equivalent AFA (Q, Σ, g, s_1, F).
 -- This is implemented similarly to `fromNFA`,

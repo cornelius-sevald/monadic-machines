@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Non-deterministic finite automata
-module Automata.FiniteState.NFA (NFA (..), accepts, stepE, step, prefinal, fromDFA, toDFA) where
+module Automata.FiniteState.NFA (NFA (..), accepts, stepE, step, fromDFA, toDFA) where
 
 import Automata.FiniteState.DFA (DFA)
 import qualified Automata.FiniteState.DFA as DFA
@@ -47,24 +47,16 @@ stepE nfa q = go $ Set.singleton q
 -- | Step the NFA in state @q@ with input symbol @x@.
 step :: (Ord s) => NFA a s -> s -> a -> Set s
 step nfa q x =
-  let rs = stepE nfa q
-   in Set.unions $ Set.map step1 rs
-  where
-    step1 r = trans nfa (r, Just x)
+  let rs = trans nfa (q, Just x)
+   in Set.unions $ Set.map (stepE nfa) rs
 
 -- | Does the NFA accept the input string @xs@?
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
 accepts nfa xs = any (`Set.member` final nfa) r_n
   where
     r_1 = stepE nfa $ start nfa
-    r_n' = foldl' f r_1 xs
-    r_n = Set.unions $ Set.map (stepE nfa) r_n'
-    f qs x = Set.unions $ Set.map (step' x) qs
-    step' x q = step nfa q x
-
--- | All states that can reach a final state with no input.
-prefinal :: (Finite s, Ord s) => NFA a s -> Set s
-prefinal nfa = Set.fromList [q | q <- universeF, not $ Set.null $ Set.intersection (stepE nfa q) (final nfa)]
+    r_n = foldl' f r_1 xs
+    f qs x = Set.unions $ Set.map (flip (step nfa) x) qs
 
 -- | Convert a DFA to an equivalent NFA.
 fromDFA :: DFA a s -> NFA a s
@@ -87,8 +79,8 @@ toDFA nfa =
       DFA.trans = delta
     }
   where
-    _start = Set.singleton $ start nfa
-    _final = Set.filter (any (`Set.member` prefinal nfa)) qs
+    _start = stepE nfa $ start nfa
+    _final = Set.filter (any (`Set.member` final nfa)) qs
     qs = Set.powerSet $ Set.fromList universeF
     delta (rs, x) =
       let d r = step nfa r x
