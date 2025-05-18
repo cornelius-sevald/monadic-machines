@@ -20,11 +20,11 @@ import GHC.Generics
 --
 -- The states and alphabet is implicitly given by the type.
 data DFA a s = DFA
-  { -- | The start state $q_0$.
+  { -- | The start state q_1.
     start :: s,
-    -- | The set of final states $F$.
+    -- | The set of final states F.
     final :: Set s,
-    -- | The transition function $\delta$.
+    -- | The transition function δ.
     trans :: (s, a) -> s
   }
   deriving (Generic)
@@ -33,12 +33,12 @@ data DFA a s = DFA
 step :: DFA a s -> s -> a -> s
 step dfa q x = trans dfa (q, x)
 
--- | Does the DFA @m@ accept the input string @xs@?
+-- | Does the DFA @m@ accept the input string @w@?
 accepts :: (Ord s) => DFA a s -> [a] -> Bool
-accepts m xs = r_n `Set.member` final m
+accepts m w = r_n `Set.member` final m
   where
     r_0 = start m
-    r_n = foldl (step m) r_0 xs
+    r_n = foldl (step m) r_0 w
 
 {- Bibliography
  - ~~~~~~~~~~~~

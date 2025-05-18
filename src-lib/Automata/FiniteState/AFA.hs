@@ -27,14 +27,14 @@ indicate f = Set.fromList $ [x | x <- universeF, f x]
 --
 --    1. Q is a finite set called the *states*,
 --    2. Σ is a finite set called the *alphabet*,
---    3. g : (Q, Σ) → (Q -> {0,1}) → {0,1} is the *transition function*,
---    4. s_1 ∈ Q is the *start state*, and
+--    3. g : (Q, Σ) → (Q → {0,1}) → {0,1} is the *transition function*,
+--    4. q_1 ∈ Q is the *start state*, and
 --    5. F ⊆ Q is the *set of final states*.
 --
 -- This is based on the definition from [1] and [2],
 -- with a few minor adjustments.
 data AFA a s = AFA
-  { -- | The start state s_1.
+  { -- | The start state q_1.
     start :: s,
     -- | The set of final states F.
     final :: Set s,

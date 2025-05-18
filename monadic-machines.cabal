@@ -97,6 +97,7 @@ library
         containers ^>= 0.7,
         universe-base ^>= 1.1.4,
         these ^>= 1.2.1,
+        lattices ^>= 2.2.1,
         probability ^>= 0.2.8,
         QuickCheck ^>= 2.15.0,
         base ^>= 4.17.2.1

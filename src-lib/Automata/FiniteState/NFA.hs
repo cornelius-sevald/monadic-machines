@@ -5,6 +5,7 @@
 -- | Non-deterministic finite automata
 module Automata.FiniteState.NFA (NFA (..), accepts, stepE, step, fromDFA, toDFA) where
 
+import Algebra.Lattice (lfp)
 import Automata.FiniteState.DFA (DFA)
 import qualified Automata.FiniteState.DFA as DFA
 import Data.Foldable (foldl')
@@ -35,14 +36,12 @@ data NFA a s = NFA
 
 -- | The ε-closure of the NFA in state @q@.
 stepE :: (Ord s) => NFA a s -> s -> Set s
-stepE nfa q = go $ Set.singleton q
+stepE nfa q = lfp f
   where
-    f r = trans nfa (r, Nothing)
-    go qs =
-      let rs = Set.unions $ Set.map f qs
-       in if rs `Set.isSubsetOf` qs
-            then qs
-            else go (qs <> rs)
+    f rs =
+      Set.singleton q
+        `Set.union` Set.unions (Set.map δ' rs)
+    δ' r = trans nfa (r, Nothing)
 
 -- | Step the NFA in state @q@ with input symbol @x@.
 step :: (Ord s) => NFA a s -> s -> a -> Set s
@@ -50,12 +49,12 @@ step nfa q x =
   let rs = trans nfa (q, Just x)
    in Set.unions $ Set.map (stepE nfa) rs
 
--- | Does the NFA accept the input string @xs@?
+-- | Does the NFA accept the input string @w@?
 accepts :: (Ord s) => NFA a s -> [a] -> Bool
-accepts nfa xs = any (`Set.member` final nfa) r_n
+accepts nfa w = any (`Set.member` final nfa) r_n
   where
     r_1 = stepE nfa $ start nfa
-    r_n = foldl' f r_1 xs
+    r_n = foldl' f r_1 w
     f qs x = Set.unions $ Set.map (flip (step nfa) x) qs
 
 -- | Convert a DFA to an equivalent NFA.
