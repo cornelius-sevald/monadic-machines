@@ -76,24 +76,24 @@ spec = do
     context "With the palindrome PDA and L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let pda = ListPDA.invert pdaPalindromes
-      prop "accepts(∀) (w. demonic non-det.) strings not in L" $ do
+      prop "accepts(∀) strings not in L" $ do
         (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
-      prop "rejects(∀) (w. demonic non-det.) strings in L" $ do
+      prop "rejects(∀) strings in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> lang
     context "With the non-repeated PDA and L = {w·w | w ∈ Σ*}" $
       modifyMaxSize (`div` 2) $ do
         let (lang, langComp) = (langRepeated, langCompRepeated)
         let pda = ListPDA.invert pdaNonRepeated
-        prop "accepts(∀) (w. demonic non-det.) strings in L" $ do
+        prop "accepts(∀) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsDemonic pda) <$> lang
-        prop "rejects(∀) (w. demonic non-det.) strings not in L" $ do
+        prop "rejects(∀) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsDemonic pda) <$> langComp
     context "With the EQ PDA and L = { AⁿBⁿCⁿ | n ≥ 0 }" $ do
       let (lang, langComp) = (langEQ, langCompEQ)
       let pda = ListPDA.invert pdaEQ
-      prop "accepts(∃) (w. demonic non-det.) strings not in L" $ do
+      prop "accepts(∃) strings not in L" $ do
         (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-      prop "rejects(∃) (w. demonic non-det.) strings in L" $ do
+      prop "rejects(∃) strings in L" $ do
         (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> lang
     context "For a random List PDA M" $
       -- We have to reduce the size a crazy amount,

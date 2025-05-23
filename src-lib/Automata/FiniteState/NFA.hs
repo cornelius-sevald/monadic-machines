@@ -69,7 +69,7 @@ fromDFA dfa =
     delta (_, Nothing) = Set.empty
     delta (q, Just x) = Set.singleton $ DFA.trans dfa (q, x)
 
--- | Convert a NFA to an equivalent DFA.
+-- | Convert a n-state NFA to an equivalent 2^n-state DFA.
 toDFA :: (Ord s, Finite s) => NFA a s -> DFA a (Set s)
 toDFA nfa =
   DFA.DFA

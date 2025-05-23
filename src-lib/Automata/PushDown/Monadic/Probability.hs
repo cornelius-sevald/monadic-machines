@@ -6,8 +6,8 @@
 -- Equivalent to an probabilistic pushdown automaton.
 module Automata.PushDown.Monadic.Probability
   ( ProbabilityPDA,
-    accepts,
-    accepts',
+    acceptsStrict,
+    acceptsNonStrict,
     invert,
     concatenateMarked,
     fromAngelicListPDA,
@@ -36,36 +36,34 @@ type ProbabilityPDA prob r p a t = MonadicPDA (T prob) r p a t
 -- transitions in the probability monad anyway, as it results
 -- in invalid probabilities when running the PDA, i.e. you may
 -- get results where P(accept) + P(reject) < 1.
-accepts ::
+acceptsStrict ::
   (Ord r, Ord prob, Num prob) =>
   ProbabilityPDA prob r p a t ->
   prob ->
   [a] ->
   Bool
-accepts m η w = acceptance $ runMPDA m w
+acceptsStrict m η w = acceptance $ runMPDA m w
   where
     acceptance t = Dist.truth t > η
 
 -- | Alternative acceptance function for PPDA, using non-strict comparison.
 --
--- Takes a *cut-point* 0 ≤ η ≤ 1 which is the threshold
+-- Takes a *cut-point* 0 < η ≤ 1 which is the threshold
 -- at which words are accepted, i.e. a larger value
 -- of η means that the automaton is less likely to accepts.
-accepts' ::
+acceptsNonStrict ::
   (Ord r, Ord prob, Num prob) =>
   ProbabilityPDA prob r p a t ->
   prob ->
   [a] ->
   Bool
-accepts' m η w = acceptance $ runMPDA m w
+acceptsNonStrict m η w = acceptance $ runMPDA m w
   where
     acceptance t = Dist.truth t >= η
 
 -- | Invert PPDA M, such that `invert M` accepts a word `w`
 -- with non-strict cut-point η iff. `M` rejects `w` with
--- strict cut-point (1-η).
---
--- NOTE: NO NO NO NO NO
+-- strict cut-point (1-η), or vice versa.
 invert ::
   (Finite r, Ord r, Fractional prob) =>
   ProbabilityPDA prob r p a t ->

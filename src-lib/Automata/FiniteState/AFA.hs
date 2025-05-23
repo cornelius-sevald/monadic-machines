@@ -42,15 +42,14 @@ data AFA a s = AFA
     trans :: (s, a) -> (s -> Bool) -> Bool
   }
 
--- | The inductive "inside out" transitive step function @H_i@ defined in [1].
+-- | The inductive "inside out" transitive step function H defined in [1].
 steps :: (Finite s, Ord s) => AFA a s -> s -> [a] -> (s -> Bool) -> Bool
 steps _ q [] u = u q
 steps afa q (a : as) u =
-  let g' = trans afa (q, a)
-      u' q' = steps afa q' as u
-   in g' u'
+  let v q' = steps afa q' as u
+   in trans afa (q, a) v
 
--- | Does the AFA accept the input string @xs@?
+-- | Does the AFA accept the input string @w@?
 accepts :: (Ord s, Finite s) => AFA a s -> [a] -> Bool
 accepts m w = steps m (start m) w f
   where
@@ -85,10 +84,19 @@ accepts m w = steps m (start m) w f
 --   δ(q_0, a) = ∅
 --   δ(q_0, ε) = S
 toNFA :: (Ord s, Finite s) => AFA a s -> NFA a (Maybe (Set s))
-toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
+toNFA afa =
+  NFA.NFA
+    { NFA.trans =
+        _trans,
+      NFA.start = _start,
+      NFA.final = _final
+    }
   where
     -- The set of starting states of the NNFA.
-    starts = Set.fromList [Just u | u <- universeF, start afa `Set.member` u]
+    starts =
+      Set.fromList
+        [ Just u | u <- universeF, start afa `Set.member` u
+        ]
     -- The starting state of the NFA.
     _start = Nothing
     -- The final states of the NFA.
@@ -112,10 +120,22 @@ toNFA afa = NFA.NFA {NFA.trans = _trans, NFA.start = _start, NFA.final = _final}
 -- The construction is essentailly the composition of converting an AFA to an NNFA,
 -- and converting an NNFA to a DFA.
 toDFA :: (Finite s, Ord s) => AFA a s -> DFA a (Set (Set s))
-toDFA afa = DFA.DFA {DFA.trans = _trans, DFA.start = _start, DFA.final = _final}
+toDFA afa =
+  DFA.DFA
+    { DFA.trans =
+        _trans,
+      DFA.start = _start,
+      DFA.final = _final
+    }
   where
-    _start = Set.fromList [u | u <- universeF, start afa `Set.member` u]
-    _final = Set.fromList [u | u <- universeF, final afa `Set.member` u]
+    _start =
+      Set.fromList
+        [ u | u <- universeF, start afa `Set.member` u
+        ]
+    _final =
+      Set.fromList
+        [ u | u <- universeF, final afa `Set.member` u
+        ]
     _trans (qs, a) =
       let g' u' q = trans afa (q, a) u'
           d u =
