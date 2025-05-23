@@ -70,6 +70,7 @@ library
         Automata.FiniteState.DFA
         Automata.FiniteState.NFA
         Automata.FiniteState.AFA
+        Automata.FiniteState.PFA
         Automata.FiniteState.Monadic
         Automata.FiniteState.Monadic.Identity
         Automata.FiniteState.Monadic.List
@@ -99,6 +100,7 @@ library
         these ^>= 1.2.1,
         lattices ^>= 2.2.1,
         probability ^>= 0.2.8,
+        bed-and-breakfast ^>= 0.5,
         QuickCheck ^>= 2.15.0,
         base ^>= 4.17.2.1
 
@@ -148,6 +150,7 @@ test-suite monadic-machines-test
         Automata.FiniteState.DFASpec
         Automata.FiniteState.NFASpec
         Automata.FiniteState.AFASpec
+        Automata.FiniteState.PFASpec
         Automata.FiniteState.Monadic.IdentitySpec
         Automata.FiniteState.Monadic.ListSpec
         Automata.FiniteState.Monadic.ListListSpec

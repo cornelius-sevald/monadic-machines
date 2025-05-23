@@ -6,14 +6,23 @@ module Automata.FiniteState.Monadic.ProbabilitySpec where
 
 import Automata.FiniteState.Monadic
 import Automata.FiniteState.Monadic.Probability
+import qualified Automata.FiniteState.PFA as PFA
 import Data.Alphabet
-import Data.Monoid (Product (..))
-import Data.Monoid.HT (power)
+import Data.NAry
 import Data.Ratio
 import qualified Numeric.Probability.Distribution as Dist
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.QuickCheck
+import Test.Util
+
+-- | The number of states of the NFAs we test.
+type N = 4
+
+-- | The type of states used in the tests.
+type S = NAry N
+
+-- | The alphabet we use for the tests.
+type A = ABC
 
 spec :: Spec
 spec = do
@@ -22,43 +31,41 @@ spec = do
       let η = 2 % 3
       let (lang, langComp) = langStochastic η
       let pfa = pfaStochastic
-      prop "accepts strings in L" $ do
-        (`shouldSatisfy` accepts pfa η) <$> lang
-      prop "rejects strings not in L" $ do
-        (`shouldSatisfy` (not . accepts pfa η)) <$> langComp
-
--- | The language { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.
---
--- It is a non-regular, but stochastic language.
--- Taken from [1].
-langStochastic :: Rational -> (Gen [Bit], Gen [Bit])
-langStochastic η = (lang, langComp)
-  where
-    lang = suchThatMap langEither (either Just (const Nothing))
-    langComp = suchThatMap langEither (either (const Nothing) Just)
-    langEither = do
-      -- Generate a list of random non-negative integers.
-      ks' <-
-        let f = fmap getNonNegative
-         in f <$> arbitrary :: Gen [Integer]
-      -- To make sure it doesn't blow up,
-      -- we limit ourselves to 5 numbers of size at most 9.
-      let ks = take 5 $ map (`mod` 10) ks'
-      -- This function computes 1 - (1/2)ᵏ
-      let φ k = getProduct $ 1 - power k (Product (1 % 2))
-      -- We compute the word.
-      let word = concatMap (\k -> power k [I] ++ [O]) ks
-      -- If the product of φ over the ks is greater than η,
-      -- then the word is in the language.
-      -- Otherwise, it is not in the language.
-      let inL = product (map φ ks) > η
-      pure (if inL then Left word else Right word)
+      let acceptance m = acceptsStrict m η
+      prop "accepts (strict) strings in L" $ do
+        (`shouldSatisfy` acceptance pfa) <$> lang
+      prop "rejects (strict) strings not in L" $ do
+        (`shouldNotSatisfy` acceptance pfa) <$> langComp
+  describe "the 'invert' function" $ do
+    context "With L = { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 2/3 }" $ do
+      let η = 2 % 3
+      let (lang, langComp) = langStochastic η
+      let pfa = invert pfaStochastic
+      let acceptance m = acceptsNonStrict m (1 - η)
+      prop "accepts strings not in L" $ do
+        (`shouldSatisfy` acceptance pfa) <$> langComp
+      prop "rejects strings in L" $ do
+        (`shouldNotSatisfy` acceptance pfa) <$> lang
+  describe "toPFA" $ modifyMaxSize isqrt $ do
+    prop "recognizes (strict) the same language" $ do
+      \m' w ->
+        let η = 2 % 3 -- arbitrary cut-point
+            m = mkProbabilityFA m' :: ProbabilityFA Rational A S
+            pfa = toPFA m
+         in PFA.accepts pfa η w `shouldBe` acceptsStrict m η w
+  describe "fromPFA" $ modifyMaxSize isqrt $ do
+    prop "recognizes (strict) the same language" $ do
+      \pfa' w ->
+        let η = 2 % 3 -- arbitrary cut-point
+            pfa = mkPFA pfa'
+            m = fromPFA pfa :: ProbabilityFA Rational A S
+         in acceptsStrict m η w `shouldBe` PFA.accepts pfa η w
 
 -- | A probability FA that recognizes the non-regular stochastic language
 -- { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.
 --
 -- Taken from [1].
-pfaStochastic :: ProbabilityFA Rational Bit Int
+pfaStochastic :: ProbabilityFA Rational Bit (NAry 3)
 pfaStochastic = MonadicFA {trans = _trans, start = _start, final = _final}
   where
     _start = 1
@@ -67,7 +74,7 @@ pfaStochastic = MonadicFA {trans = _trans, start = _start, final = _final}
       (1, I) -> Dist.uniform [1, 2]
       (2, I) -> pure 2
       (2, O) -> pure 1
-      _ -> pure 0
+      _ -> pure 3
 
 {- Bibliography
  - ~~~~~~~~~~~~

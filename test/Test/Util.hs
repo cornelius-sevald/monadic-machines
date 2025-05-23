@@ -8,22 +8,29 @@ module Test.Util where
 import qualified Automata.FiniteState.AFA as AFA
 import qualified Automata.FiniteState.DFA as DFA
 import qualified Automata.FiniteState.Monadic as MFA
+import qualified Automata.FiniteState.Monadic.Probability as MFA (ProbabilityFA)
 import qualified Automata.FiniteState.NFA as NFA
+import qualified Automata.FiniteState.PFA as PFA
 import qualified Automata.PushDown.FPDA as FPDA
 import qualified Automata.PushDown.Monadic as MPDA
 import qualified Automata.PushDown.SipserDPDA as SDPDA
 import qualified Automata.PushDown.SipserNPDA as SNPDA
+import Control.Arrow (Arrow (..))
 import Control.Monad (guard)
 import Data.Alphabet
 import Data.Either (isLeft)
 import Data.List (genericReplicate, uncons)
 import qualified Data.Logic.NormalForm as NF
 import Data.Maybe (fromJust, fromMaybe, maybeToList)
+import Data.Monoid (Product (..))
+import Data.Monoid.HT (power)
 import Data.NAry
 import Data.OrdFunctor (OrdFunctor (ordFmap))
+import Data.Ratio
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Universe.Class (Finite (..))
+import qualified Numeric.Probability.Distribution as Dist
 import Test.QuickCheck hiding (shrink)
 
 {- Utility functions -}
@@ -181,6 +188,32 @@ lang3SAT, langComp3SAT :: Int -> Gen [NF.Literal Integer]
     lang n = suchThatMap (langEither n) (either Just (const Nothing))
     langComp n = suchThatMap (langEither n) (either (const Nothing) Just)
 
+-- | The language { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.
+--
+-- It is a non-regular, but stochastic language, taken from [1].
+langStochastic :: Rational -> (Gen [Bit], Gen [Bit])
+langStochastic η = (lang, langComp)
+  where
+    lang = suchThatMap langEither (either Just (const Nothing))
+    langComp = suchThatMap langEither (either (const Nothing) Just)
+    langEither = do
+      -- Generate a list of random non-negative integers.
+      ks' <-
+        let f = fmap getNonNegative
+         in f <$> arbitrary :: Gen [Integer]
+      -- To make sure it doesn't blow up,
+      -- we limit ourselves to 5 numbers of size at most 9.
+      let ks = take 5 $ map (`mod` 10) ks'
+      -- This function computes 1 - (1/2)ᵏ
+      let φ k = getProduct $ 1 - power k (Product (1 % 2))
+      -- We compute the word.
+      let word = concatMap (\k -> power k [I] ++ [O]) ks
+      -- If the product of φ over the ks is greater than η,
+      -- then the word is in the language.
+      -- Otherwise, it is not in the language.
+      let inL = product (map φ ks) > η
+      pure (if inL then Left word else Right word)
+
 {- Creating automata from arbitrary values. -}
 
 mkDFA :: (s, Set s, Fun (s, a) s) -> DFA.DFA a s
@@ -209,6 +242,20 @@ mkAFA (start, final, trans') =
   where
     trans (q, a) u = applyFun3 trans' q a (AFA.indicate u)
 
+mkPFA ::
+  (Finite s, Ord s, Fractional prob) =>
+  (s, Set s, Fun (s, a) (NonEmptyList (s, Positive prob))) ->
+  PFA.PFA prob a s
+mkPFA (start, final, trans') =
+  PFA.PFA
+    { PFA.start = start,
+      PFA.final = final,
+      PFA.trans = trans
+    }
+  where
+    trans = Dist.fromFreqs . map toProb . getNonEmpty . applyFun trans'
+    toProb = second getPositive
+
 mkMFA :: (Monad m) => (s, Set s, Fun (s, a) (m s)) -> MFA.MonadicFA a m s
 mkMFA (start, final, trans) =
   MFA.MonadicFA
@@ -216,6 +263,22 @@ mkMFA (start, final, trans) =
       MFA.final = final,
       MFA.trans = applyFun trans
     }
+
+-- We need a dedicated function for making probability FAs,
+-- as there is no 'Arbitrary' instance for 'Dist.T'
+mkProbabilityFA ::
+  (Finite s, Ord s, Fractional prob) =>
+  (s, Set s, Fun (s, a) (NonEmptyList (s, Positive prob))) ->
+  MFA.ProbabilityFA prob a s
+mkProbabilityFA (start, final, trans') =
+  MFA.MonadicFA
+    { MFA.start = start,
+      MFA.final = final,
+      MFA.trans = trans
+    }
+  where
+    trans = Dist.fromFreqs . map toProb . getNonEmpty . applyFun trans'
+    toProb = second getPositive
 
 -- Here we can't just generate any transition function,
 -- as we need to ensure the condition that exactly one of
@@ -293,3 +356,9 @@ mkMPDA shrink (startSymbol, startState, finalStates, transRead, transPop) =
       MPDA.transRead = shrink . applyFun transRead,
       MPDA.transPop = shrink . applyFun transPop
     }
+
+{- Bibliography
+ - ~~~~~~~~~~~~
+ - [1]: Florent Garnier, Stochastic languages, April 14, 2009
+ -        URL: https://www-verimag.imag.fr/~iosif/LogicAutomata07/CoursStochLang.pdf
+-}

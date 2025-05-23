@@ -8,6 +8,7 @@ import qualified Automata.FiniteState.Monadic.ListSpec
 import qualified Automata.FiniteState.Monadic.ProbabilitySpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
+import qualified Automata.FiniteState.PFASpec
 import qualified Automata.PushDown.FPDASpec
 import qualified Automata.PushDown.Monadic.IdentitySpec
 import qualified Automata.PushDown.Monadic.ListSpec
@@ -35,6 +36,7 @@ spec = do
       describe "DFA" Automata.FiniteState.DFASpec.spec
       describe "NFA" Automata.FiniteState.NFASpec.spec
       describe "AFA" Automata.FiniteState.AFASpec.spec
+      describe "PFA" Automata.FiniteState.PFASpec.spec
       describe "Monadic FA" $ do
         describe "Identity FA" Automata.FiniteState.Monadic.IdentitySpec.spec
         describe "List FA" Automata.FiniteState.Monadic.ListSpec.spec
