@@ -1,15 +1,19 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- | Finite-state automata generalized with a mondaic transition function.
 module Automata.FiniteState.Monadic
   ( MonadicFA (..),
-    stepMFA,
     runMFA,
     runMFA',
   )
 where
 
-import Control.Monad (foldM)
+import Control.Arrow
+import Control.Category
+import Data.Foldable
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Prelude hiding (id, (.))
 
 -- | A Monadic Finite Automaton is a generalization of finite state machines,
 -- and is defined by an 7-tuple (M, Q, Σ, δ, q_0, F), where
@@ -29,15 +33,13 @@ data MonadicFA a m s = MonadicFA
     trans :: (s, a) -> m s
   }
 
-stepMFA :: MonadicFA a m s -> s -> a -> m s
-stepMFA m = curry (trans m)
-
 -- | Run a Monadic Finite Automaton @m@ on input @xs@,
 -- resultuing in a monadic Boolean value.
 runMFA :: (Ord s, Monad m) => MonadicFA a m s -> [a] -> m Bool
 runMFA m xs = do
+  let f x = Kleisli (\q -> trans m (q, x))
   let q_0 = start m
-  q_n <- foldM (stepMFA m) q_0 xs
+  q_n <- runKleisli (foldl' (>>>) id $ map f xs) q_0
   pure $ q_n `Set.member` final m
 
 -- | Like 'runMFA', but allows supplying a "shrink" function
@@ -48,8 +50,7 @@ runMFA m xs = do
 -- but do impose a significant performance overhead.
 runMFA' :: (Ord s, Monad m) => MonadicFA a m s -> (m s -> m s) -> [a] -> m Bool
 runMFA' m shrink xs = do
+  let f x = Kleisli (\q -> shrink $ trans m (q, x))
   let q_0 = start m
-  q_n <-
-    let c x k z = shrink (stepMFA m z x) >>= (shrink . k)
-     in foldr c return xs q_0
+  q_n <- runKleisli (foldl' (>>>) id $ map f xs) q_0
   pure $ q_n `Set.member` final m
