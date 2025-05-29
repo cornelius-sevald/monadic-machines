@@ -37,47 +37,45 @@ data SipserNPDA s a t = SipserNPDA
     trans :: (s, Maybe t, Maybe a) -> Set (s, [t])
   }
 
+type Config s t = (s, [t])
+
 -- | Perform a step in state `s` with (optional) input symbol `a`.
 stepStack ::
   (Ord s, Ord t) =>
   SipserNPDA s a t ->
-  s ->
-  [t] ->
+  Config s t ->
   Maybe a ->
-  Set (s, [t])
-stepStack pda s ts a =
+  Set (Config s t)
+stepStack pda (q, ts) a =
   Set.unions $ go <$> split01 ts
   where
     go (t, ts') = Set.fromList $ do
-      (s', t') <- Set.toList $ trans pda (s, t, a)
-      pure (s', t' ++ ts')
+      (q', t') <- Set.toList $ trans pda (q, t, a)
+      pure (q', t' ++ ts')
 
 -- | Perform a step without consuming any input.
 stepE ::
   (Ord s, Ord t) =>
   -- | The PDA.
   SipserNPDA s a t ->
-  -- | A set of state/stack configurations we have previously seen.
-  Set (s, [t]) ->
   -- | The current state/stack configuration.
-  (s, [t]) ->
+  Config s t ->
   -- | A set of new configurations.
-  Set (s, [t])
-stepE pda seen c@(s, ts) =
-  let seen' = Set.insert c seen
-      -- We step with no input,
-      -- yielding a set of successor configurations.
-      cs' = stepStack pda s ts Nothing
-      -- We filter out the already-seen configurations
-      -- (or at least those similar enough),
-      -- leaving only new configurations.
-      new = Set.filter (isNothing . dejavu seen') cs'
-   in if null new
-        -- If there are no new successor configurations,
-        -- then we return the seen configurations.
-        then seen'
-        -- Otherwise we recursively step from the new configurations.
-        else Set.foldl (stepE pda) seen' new
+  Set (Config s t)
+stepE pda = go []
+  where
+    go seen (s, ts) =
+      let seen' = Set.insert (s, ts) seen
+          -- We step with no input,
+          -- yielding a set of successor configurations.
+          cs' = stepStack pda (s, ts) Nothing
+          -- We filter out the already-seen configurations
+          -- (or at least those similar enough),
+          -- leaving only new configurations.
+          new = Set.filter (isNothing . dejavu seen') cs'
+       in -- We return the current configuration,
+          -- and recursively step the new ones.
+          Set.singleton (s, ts) `Set.union` Set.unions (Set.map (go seen') new)
 
 -- | Version of 'stepE' which also keeps tracks if a final
 -- state was reached on the path to each configuration.
@@ -85,47 +83,44 @@ stepE' ::
   (Ord s, Ord t) =>
   -- | The PDA.
   SipserNPDA s a t ->
-  -- | A set of state/stack configurations we have previously seen.
-  Set ((s, [t]), Bool) ->
   -- | The current state/stack configuration.
   ((s, [t]), Bool) ->
   -- | A set of new configurations.
   Set ((s, [t]), Bool)
-stepE' pda seen ((s, ts), b) =
-  let isFinal = s `Set.member` finalStates pda
-      b' = b || isFinal
-      seen' = Set.insert ((s, ts), b') seen
-      -- We step with no input,
-      -- yielding a set of successor configurations.
-      cs' = stepStack pda s ts Nothing
-      -- We filter out the already-seen configurations
-      -- (or at least those similar enough),
-      -- leaving only new configurations.
-      new = Set.filter (isNothing . dejavu (Set.map fst seen')) cs'
-   in if null new
-        -- If there are no new successor configurations,
-        -- then we return the seen configurations.
-        then seen'
-        -- Otherwise we recursively step from the new configurations.
-        else Set.foldl (stepE' pda) seen' (Set.map (,b') new)
+stepE' pda = go []
+  where
+    go seen c@((s, ts), b) =
+      let isFinal = s `Set.member` finalStates pda
+          b' = b || isFinal
+          seen' = Set.insert ((s, ts), b') seen
+          -- We step with no input,
+          -- yielding a set of successor configurations.
+          cs' = stepStack pda (s, ts) Nothing
+          -- We filter out the already-seen configurations
+          -- (or at least those similar enough),
+          -- leaving only new configurations.
+          new = Set.map (,b') $ Set.filter (isNothing . dejavu (Set.map fst seen')) cs'
+       in -- We return the current configuration,
+          -- and recursively step the new ones.
+          Set.singleton c `Set.union` Set.unions (Set.map (go seen') new)
 
 -- | Perform a step on a single input symbol.
-step :: (Ord s, Ord t) => SipserNPDA s a t -> a -> (s, [t]) -> Set (s, [t])
-step pda a (s, ts) =
+step :: (Ord s, Ord t) => SipserNPDA s a t -> a -> Config s t -> Set (Config s t)
+step pda a c =
   -- We get the set of configurations reachable
   -- without consuming any input.
-  let cs' = stepE pda [] (s, ts)
+  let cs' = stepE pda c
    in -- And then step each of those with the input.
       Set.unions $ Set.map f cs'
   where
-    f (s', ts') = stepStack pda s' ts' (Just a)
+    f c' = stepStack pda c' (Just a)
 
 accepts :: (Ord s, Ord t) => SipserNPDA s a t -> [a] -> Bool
 accepts pda as = go as (startState pda, [])
   where
     go [] c =
-      let ss = Set.map fst $ stepE pda [] c
-       in not $ null $ Set.intersection ss (finalStates pda)
+      let qs = Set.map fst $ stepE pda c
+       in not $ null $ Set.intersection qs (finalStates pda)
     go (a : as') c =
       let cs' = step pda a c
        in any (go as') cs'
@@ -133,8 +128,6 @@ accepts pda as = go as (startState pda, [])
 -- | For a NPDA M1 and M2 both with alphabet Σ,
 -- construct a new NPDA M such that, for string w ∈ Σ*,
 -- M accepts w iff. either M1 or M2 (or both) accepts w.
---
--- TODO: Test.
 union ::
   (Ord s1, Ord s2, Ord t1, Ord t2) =>
   SipserNPDA s1 a t1 ->

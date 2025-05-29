@@ -293,7 +293,7 @@ fromSipserNPDA pda = listPDA
       -- without input, or a state in an ε-loop.
       -- In either case, `b` is a boolean indicating that a
       -- final state was encountered.
-      ((q', ts'), b) <- Set.toList $ SNPDA.stepE' pda [] ((q, ts), False)
+      ((q', ts'), b) <- Set.toList $ SNPDA.stepE' pda ((q, ts), False)
       let p = Right (PopState q' Nothing, b)
           r = Left ((ReadState q', b), SSymbol <$> ts')
        in if null ts' then [p, r] else [r]
@@ -307,7 +307,7 @@ fromSipserNPDA pda = listPDA
     -- Check if a final state is reachable from state `q` with stack symbols `ts`,
     -- but consuming no input.
     finalReachable (q, ts) =
-      let reachable = Set.map fst $ SNPDA.stepE pda [] (q, ts)
+      let reachable = Set.map fst $ SNPDA.stepE pda (q, ts)
        in reachable `intersects` SNPDA.finalStates pda
     -- Is the intersections of `xs` and `ys` non-empty?
     intersects xs ys = not $ xs `Set.disjoint` ys

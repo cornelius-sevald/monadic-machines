@@ -12,6 +12,7 @@ import qualified Automata.PushDown.SipserNPDASpec as SNPDASpec
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
 import Data.Containers.ListUtils (nubOrd)
+import Data.Maybe (maybeToList)
 import Data.NAry (NAry)
 import qualified Data.NAry as NAry
 import qualified Data.Set as Set
@@ -111,14 +112,36 @@ spec = do
              in ListPDA.acceptsDemonic m w `shouldNotBe` ListPDA.acceptsAngelig mInv w
   describe "fromSipserNPDA" $
     modifyMaxSize (`div` 10) $ do
-      context "With an endlessly looping Sipser NPDA" $ do
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaLoop
+      context "With an looping PDA that eventually overflows the stack symbol" $ do
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOverflow
         it "rejects(∃) the empty string" $ do
           [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
         prop "accepts(∃) all strings of length 1" $
           \n -> [n] `shouldSatisfy` ListPDA.acceptsAngelig pda
         prop "rejects(∃) all strings of length >1" $
           \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+      context "With a PDA with an growing ε-cycle" $ do
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaEpsilonCycle
+        it "rejects(∃) the empty string" $
+          [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+        it "accepts(∃) the string of length 1" $
+          [()] `shouldSatisfy` ListPDA.acceptsAngelig pda
+        prop "rejects(∃) all strings of length >1" $
+          \(w1, w2, ws) ->
+            let w = w1 : w2 : ws
+             in w `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+      context "With a PDA with several growing ε-cycles" $ do
+        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaEpsilonCycles
+        it "rejects(∃) the empty string" $
+          [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
+        prop "accepts(∃) all strings with length >=1 and <=3" $
+          \(w1, w2, w3) ->
+            let w = maybeToList w1 ++ maybeToList w2 ++ [w3]
+             in w `shouldSatisfy` ListPDA.acceptsAngelig pda
+        prop "rejects(∃) all strings of length >3" $
+          \(w1, w2, w3, w4, ws) ->
+            let w = w1 : w2 : w3 : w4 : ws
+             in w `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
         let (lang, langComp) = (langOkIk, langCompOkIk)
         let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOkIk

@@ -8,6 +8,7 @@ import Automata.PushDown.SipserNPDA (SipserNPDA (..))
 import qualified Automata.PushDown.SipserNPDA as SNPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
+import Data.Maybe (maybeToList)
 import Data.NAry
 import qualified Data.Set as Set
 import Data.Void (Void)
@@ -19,14 +20,36 @@ import Test.Util
 spec :: Spec
 spec = do
   describe "Example Sipser NPDAs" $ do
-    describe "An endlessly looping PDA" $ do
-      let npda = npdaLoop
+    describe "A looping PDA that eventually overflows the stack symbol" $ do
+      let npda = npdaOverflow
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` SNPDA.accepts npda
       prop "accepts all strings of length 1" $
         \n -> [n] `shouldSatisfy` SNPDA.accepts npda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SNPDA.accepts npda
+    describe "A PDA with an growing ε-cycle" $ do
+      let npda = npdaEpsilonCycle
+      it "rejects the empty string" $
+        [] `shouldNotSatisfy` SNPDA.accepts npda
+      it "accepts the string of length 1" $
+        [()] `shouldSatisfy` SNPDA.accepts npda
+      prop "rejects all strings of length >1" $
+        \(w1, w2, ws) ->
+          let w = w1 : w2 : ws
+           in w `shouldNotSatisfy` SNPDA.accepts npda
+    describe "A PDA with several growing ε-cycles" $ do
+      let npda = npdaEpsilonCycles
+      it "rejects the empty string" $
+        [] `shouldNotSatisfy` SNPDA.accepts npda
+      prop "accepts all strings with length >=1 and <=3" $
+        \(w1, w2, w3) ->
+          let w = maybeToList w1 ++ maybeToList w2 ++ [w3]
+           in w `shouldSatisfy` SNPDA.accepts npda
+      prop "rejects all strings of length >3" $
+        \(w1, w2, w3, w4, ws) ->
+          let w = w1 : w2 : w3 : w4 : ws
+           in w `shouldNotSatisfy` SNPDA.accepts npda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
       let npda = npdaOkIk
@@ -52,16 +75,15 @@ spec = do
 
 {- Example Sipser PDAs -}
 
--- | A NPDA with a loop endlessly growing the stack.
+-- | A NPDA with an endless loop.
 --
 -- It reads a single number, pushes it on the stack,
--- and then goes in an infinite loop pushing
--- 'n+1' on the stack, where 'n' is the previous top of the stack.
+-- and then goes in an infinite loop the stack symbol 'n' with 'n+1'.
 --
 -- This should continue until n=255,
 -- where it will overflow and the loop should be detected.
-npdaLoop :: SipserNPDA Word8 Word8 Word8
-npdaLoop =
+npdaOverflow :: SipserNPDA Word8 Word8 Word8
+npdaOverflow =
   SipserNPDA
     { startState = 1,
       finalStates = Set.fromList [2],
@@ -72,8 +94,48 @@ npdaLoop =
         (_, _, _) -> []
     }
 
+-- | A NPDA with an ε-cycle which contunually grows the stack.
+--
+-- Under conventional semantics, this PDA should accept
+-- all strings with length >=1, as could loop an arbitrary
+-- amount of times before going to state 2.
+-- However, as we only allow paths that don't follow
+-- a non-decreasing ε-cycle, we only accept strings of length 1,
+-- as any path pushing more than one stack symbol must be an
+-- increasing ε-cycle.
+npdaEpsilonCycle :: SipserNPDA (NAry 2) () ()
+npdaEpsilonCycle =
+  SipserNPDA
+    { startState = 1,
+      finalStates = Set.fromList [2],
+      trans = \case
+        (1, Nothing, Nothing) -> [(1, [()])]
+        (_, Just (), Just ()) -> [(2, [])]
+        (_, _, _) -> []
+    }
+
+-- | A NPDA with multiple ε-cycles which contunually grows the stack.
+--
+-- This is much like 'npdaEpsilonCycle'.
+-- With conventional semantics it should
+-- accept all strings with length >=1,
+-- but with our semantics it should only accepts strings
+-- with length >=1 and <=3.
+npdaEpsilonCycles :: SipserNPDA (NAry 4) () ()
+npdaEpsilonCycles =
+  SipserNPDA
+    { startState = 1,
+      finalStates = Set.fromList [4],
+      trans = \case
+        (1, Nothing, Nothing) -> [(2, [()]), (3, [()])]
+        (2, Nothing, Nothing) -> [(1, [()]), (3, [()])]
+        (3, Nothing, Nothing) -> [(1, [()]), (2, [()])]
+        (_, Just (), Just ()) -> [(4, [])]
+        (_, _, _) -> []
+    }
+
 -- | PDA from figure 2.15 of [1]
-npdaOkIk :: SipserNPDA Word8 Bit Char
+npdaOkIk :: SipserNPDA (NAry 4) Bit Char
 npdaOkIk =
   SipserNPDA
     { startState = 1,
@@ -88,7 +150,7 @@ npdaOkIk =
     }
 
 -- | A PDA that recognizes palindromes.
-npdaPalindromes :: SipserNPDA Word8 ABC (Either ABC ())
+npdaPalindromes :: SipserNPDA (NAry 4) ABC (Either ABC ())
 npdaPalindromes =
   SipserNPDA
     { startState = 1,
