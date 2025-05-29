@@ -11,10 +11,10 @@ import qualified Automata.FiniteState.Monadic as MFA
 import qualified Automata.FiniteState.Monadic.Probability as MFA (ProbabilityFA)
 import qualified Automata.FiniteState.NFA as NFA
 import qualified Automata.FiniteState.PFA as PFA
+import qualified Automata.PushDown.DPDA as DPDA
 import qualified Automata.PushDown.FPDA as FPDA
 import qualified Automata.PushDown.Monadic as MPDA
-import qualified Automata.PushDown.SipserDPDA as SDPDA
-import qualified Automata.PushDown.SipserNPDA as SNPDA
+import qualified Automata.PushDown.NPDA as NPDA
 import Control.Arrow (Arrow (..))
 import Control.Monad (guard)
 import Data.Alphabet
@@ -286,14 +286,14 @@ mkProbabilityFA (start, final, trans') =
 -- To do this, we generate an additional selection function,
 -- which maps each state to a number between 1 and 4,
 -- indicating which of the four options for δ is to be defined.
-mkSipserDPDA ::
+mkDPDA ::
   (s, Set s, Fun s (NAry 4), Fun (s, Maybe t, Maybe a) (s, [t])) ->
-  SDPDA.SipserDPDA s a t
-mkSipserDPDA (startStates, finalStates, select', trans') =
-  SDPDA.SipserDPDA
-    { SDPDA.startState = startStates,
-      SDPDA.finalStates = finalStates,
-      SDPDA.trans = trans
+  DPDA.DPDA s a t
+mkDPDA (startStates, finalStates, select', trans') =
+  DPDA.DPDA
+    { DPDA.startState = startStates,
+      DPDA.finalStates = finalStates,
+      DPDA.trans = trans
     }
   where
     select = applyFun select'
@@ -305,14 +305,14 @@ mkSipserDPDA (startStates, finalStates, select', trans') =
       (Ith 4, (_, Just _, Just _)) -> Just $ δ c
       _ -> Nothing
 
-mkSipserNPDA ::
+mkNPDA ::
   (s, Set s, Fun (s, Maybe t, Maybe a) (Set (s, [t]))) ->
-  SNPDA.SipserNPDA s a t
-mkSipserNPDA (startState, finalStates, trans) =
-  SNPDA.SipserNPDA
-    { SNPDA.startState = startState,
-      SNPDA.finalStates = finalStates,
-      SNPDA.trans = applyFun trans
+  NPDA.NPDA s a t
+mkNPDA (startState, finalStates, trans) =
+  NPDA.NPDA
+    { NPDA.startState = startState,
+      NPDA.finalStates = finalStates,
+      NPDA.trans = applyFun trans
     }
 
 mkFPDA ::

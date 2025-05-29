@@ -2,10 +2,10 @@
 -- Equivalent to a deterministic PDA.
 module Automata.PushDown.Monadic.Identity where
 
+import Automata.PushDown.DPDA (DPDA)
 import Automata.PushDown.FPDA (FPDA (FPDA))
 import qualified Automata.PushDown.FPDA as FPDA
 import Automata.PushDown.Monadic
-import Automata.PushDown.SipserDPDA (SipserDPDA)
 import Automata.PushDown.Util
 import Data.Functor.Identity
 import Data.Universe.Class (Finite)
@@ -37,13 +37,13 @@ toFPDA m =
       FPDA.transPop = runIdentity . transPop m
     }
 
--- | See 'FPDA.toSipserDPDA'.
-toSipserDPDA :: (Ord r, Ord p) => IdentityPDA r p a t -> SipserDPDA (Maybe (Either r p)) a t
-toSipserDPDA = FPDA.toSipserDPDA . toFPDA
+-- | See 'FPDA.toDPDA'.
+toDPDA :: (Ord r, Ord p) => IdentityPDA r p a t -> DPDA (Maybe (Either r p)) a t
+toDPDA = FPDA.toDPDA . toFPDA
 
--- | See 'FPDA.fromSipserDPDA'.
-fromSipserDPDA ::
+-- | See 'FPDA.fromDPDA'.
+fromDPDA ::
   (Finite s, Finite a, Finite t, Ord s, Eq t) =>
-  SipserDPDA s a t ->
+  DPDA s a t ->
   IdentityPDA (FPDA.ReadState s, Bool) (FPDA.PopState s a, Bool) a (Bottomed t)
-fromSipserDPDA = fromFPDA . FPDA.fromSipserDPDA
+fromDPDA = fromFPDA . FPDA.fromDPDA

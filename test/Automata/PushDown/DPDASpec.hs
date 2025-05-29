@@ -1,10 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Automata.PushDown.SipserDPDASpec where
+module Automata.PushDown.DPDASpec where
 
-import Automata.PushDown.SipserDPDA (SipserDPDA (..))
-import qualified Automata.PushDown.SipserDPDA as SDPDA
+import Automata.PushDown.DPDA (DPDA (..))
+import qualified Automata.PushDown.DPDA as DPDA
 import Automata.PushDown.Util (Ended (..), end)
 import Data.Alphabet
 import qualified Data.Set as Set
@@ -16,15 +16,15 @@ import Test.Util
 
 spec :: Spec
 spec = do
-  describe "Example Sipser DPDAs" $ do
+  describe "Example DPDAs" $ do
     describe "An endlessly looping DPDA" $ do
       let dpda = dpdaLoop
       it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` SDPDA.accepts dpda
+        [] `shouldNotSatisfy` DPDA.accepts dpda
       prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` SDPDA.accepts dpda
+        \n -> [n] `shouldSatisfy` DPDA.accepts dpda
       prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` DPDA.accepts dpda
     describe "A DPDA accepting only strings of numbers that sum to ≥ 5" $
       modifyMaxSize (`div` 10) $ do
         let dpda = dpdaSumLeastFive
@@ -32,32 +32,32 @@ spec = do
             ws' f = fmap end $ arbitrary `suchThat` (f . (fromIntegral <$>))
         prop "rejects all strings whose sum < 5" $
           let ws = ws' ((< 5) . sum)
-           in (`shouldNotSatisfy` SDPDA.accepts dpda) <$> ws
+           in (`shouldNotSatisfy` DPDA.accepts dpda) <$> ws
         prop "accepts all strings whose sum ≥ 5" $
           let ws = ws' ((>= 5) . sum)
-           in (`shouldSatisfy` SDPDA.accepts dpda) <$> ws
+           in (`shouldSatisfy` DPDA.accepts dpda) <$> ws
     describe "A DPDA popping from an empty stack" $ do
       let dpda = dpdaPopEmpty
       it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` SDPDA.accepts dpda
+        [] `shouldNotSatisfy` DPDA.accepts dpda
       prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` SDPDA.accepts dpda
+        \n -> [n] `shouldSatisfy` DPDA.accepts dpda
       prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SDPDA.accepts dpda
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` DPDA.accepts dpda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
       let dpda = dpdaOkIk
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
+        (`shouldSatisfy` DPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SDPDA.accepts dpda) <$> langComp
+        (`shouldNotSatisfy` DPDA.accepts dpda) <$> langComp
     context "With L = {w·c·w^R | c ∉ w}" $ do
       let (lang, langComp) = (langMirrored, langCompMirrored)
       let dpda = dpdaMirrored
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SDPDA.accepts dpda) <$> lang
+        (`shouldSatisfy` DPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SDPDA.accepts dpda) <$> langComp
+        (`shouldNotSatisfy` DPDA.accepts dpda) <$> langComp
 
 {- Example DPDAs and associated languages -}
 
@@ -70,9 +70,9 @@ spec = do
 --
 -- This should continue until n=255,
 -- where it will overflow and the loop should be detected.
-dpdaLoop :: SipserDPDA Word8 Word8 Word8
+dpdaLoop :: DPDA Word8 Word8 Word8
 dpdaLoop =
-  SipserDPDA
+  DPDA
     { startState = 1,
       finalStates = Set.fromList [2],
       trans = \case
@@ -84,9 +84,9 @@ dpdaLoop =
 
 -- A DPDA that accepts any word that sums to ≥ 5.
 -- Has a designated end-of-input marker.
-dpdaSumLeastFive :: SipserDPDA Word8 (Ended Word8) ()
+dpdaSumLeastFive :: DPDA Word8 (Ended Word8) ()
 dpdaSumLeastFive =
-  SipserDPDA
+  DPDA
     { startState = 1,
       finalStates = [7],
       trans = \case
@@ -107,9 +107,9 @@ dpdaSumLeastFive =
 --
 -- This is to check that popping from an empty stack
 -- is handled properly.
-dpdaPopEmpty :: SipserDPDA Word8 () ()
+dpdaPopEmpty :: DPDA Word8 () ()
 dpdaPopEmpty =
-  SipserDPDA
+  DPDA
     { startState = 1,
       finalStates = Set.fromList [2],
       trans = \case
@@ -118,10 +118,10 @@ dpdaPopEmpty =
         (_, _, _) -> Nothing
     }
 
--- | Sipser DPDA that recognizes the language {OᵏIᵏ | k ≥ 0}.
-dpdaOkIk :: SipserDPDA Word8 Bit Char
+-- | DPDA that recognizes the language {OᵏIᵏ | k ≥ 0}.
+dpdaOkIk :: DPDA Word8 Bit Char
 dpdaOkIk =
-  SipserDPDA
+  DPDA
     { startState = 1,
       finalStates = [1, 4],
       trans =
@@ -139,11 +139,11 @@ dpdaOkIk =
           (_, _, _) -> Nothing
     }
 
--- | Sipser DPDA that recognizes the language {w·c·w^R | c ∉ w}
+-- | DPDA that recognizes the language {w·c·w^R | c ∉ w}
 -- of strings mirrored around a certain character (in this case Unit).
-dpdaMirrored :: SipserDPDA Word8 (Either ABC ()) (ABC, Bool)
+dpdaMirrored :: DPDA Word8 (Either ABC ()) (ABC, Bool)
 dpdaMirrored =
-  SipserDPDA
+  DPDA
     { startState = 1,
       finalStates = [4],
       trans =

@@ -3,7 +3,6 @@
 
 module Automata.PushDown.Util where
 
-import Data.Bool (bool)
 import Data.Foldable (find)
 import Data.Maybe (listToMaybe)
 import Data.Universe.Class
@@ -43,7 +42,7 @@ split01 :: [x] -> [(Maybe x, [x])]
 split01 [] = [(Nothing, [])]
 split01 (x : xs) = [(Nothing, x : xs), (Just x, xs)]
 
-{- These types are used for conversion of FPDAs to Sipser DPDAs. -}
+{- Types convenient for making PDAs -}
 
 -- An input symbol, or an end-of-input marker.
 data Ended a
@@ -84,13 +83,3 @@ instance (Universe a) => Universe (Bottomed a) where
 instance (Finite a) => Finite (Bottomed a) where
   universeF = Bottom : (SSymbol <$> universeF)
   cardinality = fmap succ (retag (cardinality :: Tagged a Natural))
-
-data State s
-  = Start
-  | Middle s
-  | Final
-  deriving (Show, Eq, Ord, Generic)
-
-instance (Arbitrary s) => Arbitrary (State s) where
-  arbitrary = either (bool Start Final) Middle <$> arbitrary
-  shrink = genericShrink

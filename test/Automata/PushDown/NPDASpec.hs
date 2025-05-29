@@ -2,10 +2,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Automata.PushDown.SipserNPDASpec where
+module Automata.PushDown.NPDASpec where
 
-import Automata.PushDown.SipserNPDA (SipserNPDA (..))
-import qualified Automata.PushDown.SipserNPDA as SNPDA
+import Automata.PushDown.NPDA (NPDA (..))
+import qualified Automata.PushDown.NPDA as NPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
 import Data.Maybe (maybeToList)
@@ -19,61 +19,61 @@ import Test.Util
 
 spec :: Spec
 spec = do
-  describe "Example Sipser NPDAs" $ do
+  describe "Example NPDAs" $ do
     describe "A looping PDA that eventually overflows the stack symbol" $ do
       let npda = npdaOverflow
       it "rejects the empty string" $ do
-        [] `shouldNotSatisfy` SNPDA.accepts npda
+        [] `shouldNotSatisfy` NPDA.accepts npda
       prop "accepts all strings of length 1" $
-        \n -> [n] `shouldSatisfy` SNPDA.accepts npda
+        \n -> [n] `shouldSatisfy` NPDA.accepts npda
       prop "rejects all strings of length >1" $
-        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` SNPDA.accepts npda
+        \(n, m, w) -> (n : m : w) `shouldNotSatisfy` NPDA.accepts npda
     describe "A PDA with an growing ε-cycle" $ do
       let npda = npdaEpsilonCycle
       it "rejects the empty string" $
-        [] `shouldNotSatisfy` SNPDA.accepts npda
+        [] `shouldNotSatisfy` NPDA.accepts npda
       it "accepts the string of length 1" $
-        [()] `shouldSatisfy` SNPDA.accepts npda
+        [()] `shouldSatisfy` NPDA.accepts npda
       prop "rejects all strings of length >1" $
         \(w1, w2, ws) ->
           let w = w1 : w2 : ws
-           in w `shouldNotSatisfy` SNPDA.accepts npda
+           in w `shouldNotSatisfy` NPDA.accepts npda
     describe "A PDA with several growing ε-cycles" $ do
       let npda = npdaEpsilonCycles
       it "rejects the empty string" $
-        [] `shouldNotSatisfy` SNPDA.accepts npda
+        [] `shouldNotSatisfy` NPDA.accepts npda
       prop "accepts all strings with length >=1 and <=3" $
         \(w1, w2, w3) ->
           let w = maybeToList w1 ++ maybeToList w2 ++ [w3]
-           in w `shouldSatisfy` SNPDA.accepts npda
+           in w `shouldSatisfy` NPDA.accepts npda
       prop "rejects all strings of length >3" $
         \(w1, w2, w3, w4, ws) ->
           let w = w1 : w2 : w3 : w4 : ws
-           in w `shouldNotSatisfy` SNPDA.accepts npda
+           in w `shouldNotSatisfy` NPDA.accepts npda
     context "With L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
       let npda = npdaOkIk
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SNPDA.accepts npda) <$> lang
+        (`shouldSatisfy` NPDA.accepts npda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SNPDA.accepts npda) <$> langComp
+        (`shouldNotSatisfy` NPDA.accepts npda) <$> langComp
     context "With L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
       let npda = npdaPalindromes
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SNPDA.accepts npda) <$> lang
+        (`shouldSatisfy` NPDA.accepts npda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SNPDA.accepts npda) <$> langComp
+        (`shouldNotSatisfy` NPDA.accepts npda) <$> langComp
     context "With L = { w·w | w ∈ Σ* }" $
       modifyMaxSize (`div` 2) $ do
         let (lang, langComp) = (langRepeated, langCompRepeated)
         let pda = npdaNonRepeated
         prop "accepts strings not in L" $ do
-          (`shouldSatisfy` SNPDA.accepts pda) <$> langComp
+          (`shouldSatisfy` NPDA.accepts pda) <$> langComp
         prop "rejects strings in L" $ do
-          (`shouldNotSatisfy` SNPDA.accepts pda) <$> lang
+          (`shouldNotSatisfy` NPDA.accepts pda) <$> lang
 
-{- Example Sipser PDAs -}
+{- Example PDAs -}
 
 -- | A NPDA with an endless loop.
 --
@@ -82,9 +82,9 @@ spec = do
 --
 -- This should continue until n=255,
 -- where it will overflow and the loop should be detected.
-npdaOverflow :: SipserNPDA Word8 Word8 Word8
+npdaOverflow :: NPDA Word8 Word8 Word8
 npdaOverflow =
-  SipserNPDA
+  NPDA
     { startState = 1,
       finalStates = Set.fromList [2],
       trans = \case
@@ -103,9 +103,9 @@ npdaOverflow =
 -- a non-decreasing ε-cycle, we only accept strings of length 1,
 -- as any path pushing more than one stack symbol must be an
 -- increasing ε-cycle.
-npdaEpsilonCycle :: SipserNPDA (NAry 2) () ()
+npdaEpsilonCycle :: NPDA (NAry 2) () ()
 npdaEpsilonCycle =
-  SipserNPDA
+  NPDA
     { startState = 1,
       finalStates = Set.fromList [2],
       trans = \case
@@ -121,9 +121,9 @@ npdaEpsilonCycle =
 -- accept all strings with length >=1,
 -- but with our semantics it should only accepts strings
 -- with length >=1 and <=3.
-npdaEpsilonCycles :: SipserNPDA (NAry 4) () ()
+npdaEpsilonCycles :: NPDA (NAry 4) () ()
 npdaEpsilonCycles =
-  SipserNPDA
+  NPDA
     { startState = 1,
       finalStates = Set.fromList [4],
       trans = \case
@@ -135,9 +135,9 @@ npdaEpsilonCycles =
     }
 
 -- | PDA from figure 2.15 of [1]
-npdaOkIk :: SipserNPDA (NAry 4) Bit Char
+npdaOkIk :: NPDA (NAry 4) Bit Char
 npdaOkIk =
-  SipserNPDA
+  NPDA
     { startState = 1,
       finalStates = [1, 4],
       trans = \case
@@ -150,9 +150,9 @@ npdaOkIk =
     }
 
 -- | A PDA that recognizes palindromes.
-npdaPalindromes :: SipserNPDA (NAry 4) ABC (Either ABC ())
+npdaPalindromes :: NPDA (NAry 4) ABC (Either ABC ())
 npdaPalindromes =
-  SipserNPDA
+  NPDA
     { startState = 1,
       finalStates = [4],
       trans = \case
@@ -174,9 +174,9 @@ npdaPalindromes =
     }
 
 -- | A PDA that recognizes the language of strings of odd length.
-npdaOdd :: SipserNPDA (NAry 2) a Void
+npdaOdd :: NPDA (NAry 2) a Void
 npdaOdd =
-  SipserNPDA
+  NPDA
     { startState = _startState,
       finalStates = _finalStates,
       trans = _trans
@@ -194,7 +194,7 @@ npdaOdd =
 -- Implementation taken from the description given in:
 -- https://cs.stackexchange.com/a/170019.
 npdaNonRepeated ::
-  SipserNPDA
+  NPDA
     (Maybe (Either (NAry 2) (Either Bool (NAry 6, ABC, ABC))))
     ABC
     (Either Void (Bottomed ()))
@@ -202,13 +202,13 @@ npdaNonRepeated =
   -- Step 0:
   -- Non-deterministically choose to either check that w
   -- has odd length or go to step 1.
-  m1 `SNPDA.union` m2
+  m1 `NPDA.union` m2
   where
-    m1 :: SipserNPDA (NAry 2) a Void
+    m1 :: NPDA (NAry 2) a Void
     m1 = npdaOdd
-    m2 :: SipserNPDA (Either Bool (NAry 6, ABC, ABC)) ABC (Bottomed ())
+    m2 :: NPDA (Either Bool (NAry 6, ABC, ABC)) ABC (Bottomed ())
     m2 =
-      SipserNPDA
+      NPDA
         { startState = _startState,
           finalStates = _finalStates,
           trans = _trans

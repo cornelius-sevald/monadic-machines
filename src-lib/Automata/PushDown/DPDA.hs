@@ -1,5 +1,5 @@
--- | A Sipser Deterministic Pushdown Automata.
-module Automata.PushDown.SipserDPDA where
+-- | A Deterministic Pushdown Automata.
+module Automata.PushDown.DPDA where
 
 import Automata.PushDown.Util
 import Data.List.NonEmpty (NonEmpty (..))
@@ -8,7 +8,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.IsList
 
--- | A Sipser Deterministic Pushdown Automaton (SipserDPDA)
+-- | A deterministic Pushdown Automaton (DPDA)
 -- is a 6-tuple (Q, Σ, Γ, δ, q_1, F), where
 --
 --    1. Q is a finite set called the *states*,
@@ -23,7 +23,7 @@ import GHC.IsList
 --     δ(q, a, t), δ(q, a, ε), δ(q, ε, t), and δ(q, ε, ε)
 -- is not ∅. [1]
 --
--- In the book, the transition function may only push zero or
+-- In [1], the transition function may only push zero or
 -- one stack symbols, but allowing it to push an arbitrary
 -- amount doesn't change its power and makes conversions
 -- to other types of DPDAs much simpler.
@@ -35,7 +35,7 @@ import GHC.IsList
 --
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a` and `t` respectively.
-data SipserDPDA s a t = SipserDPDA
+data DPDA s a t = DPDA
   { -- | The start state q_1.
     startState :: s,
     -- | The set of final states F.
@@ -51,7 +51,7 @@ data SipserDPDA s a t = SipserDPDA
 -- We try both, and choose whichever one was successful (if any),
 -- and return `Just` the successor state, along with the remaining stack.
 -- If none of the two options were successful, we return `Nothing`,
-stepStack :: SipserDPDA s a t -> s -> [t] -> Maybe a -> Maybe (s, [t])
+stepStack :: DPDA s a t -> s -> [t] -> Maybe a -> Maybe (s, [t])
 stepStack pda s ts a =
   let ress = mapMaybe go $ split01 ts
    in case ress of
@@ -64,12 +64,12 @@ stepStack pda s ts a =
         [_, _] ->
           let x_str = case a of Nothing -> "ε"; _ -> "a"
               msg =
-                "Automata.PushDown.SipserDPDA.stepStack: "
+                "Automata.PushDown.DPDA.stepStack: "
                   ++ "transition function is defined for both "
                   ++ ("(s, ε, " ++ x_str ++ ") and (s, t, " ++ x_str ++ ").")
            in error msg
         -- `ress` clearly has length <= 2, so this should never happen.
-        _ -> error "Automata.PushDown.SipserDPDA.stepStack: `length ress` > 2 (this should never happen)"
+        _ -> error "Automata.PushDown.DPDA.stepStack: `length ress` > 2 (this should never happen)"
   where
     go (t, ts') = do
       (s', t') <- trans pda (s, t, a)
@@ -81,7 +81,7 @@ stepStack pda s ts a =
 stepE ::
   (Eq s, Eq t) =>
   -- | The DPDA.
-  SipserDPDA s a t ->
+  DPDA s a t ->
   -- | A list of state/stack configurations we have previously seen.
   [(s, [t])] ->
   -- | The current state/stack configuration.
@@ -104,7 +104,7 @@ stepE pda seen c@(s, ts) =
             -- Otherwise we step on this new configuration.
             Nothing -> stepE pda seen' c'
 
-step :: (Eq s, Eq t) => SipserDPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
+step :: (Eq s, Eq t) => DPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
 step pda a (s, ts) =
   case stepE pda [] (s, ts) of
     -- We have reached an infinite loop of states `ss`.
@@ -134,14 +134,14 @@ step pda a (s, ts) =
             then Right []
             else
               let msg =
-                    "Automata.PushDown.SipserDPDA.step: "
+                    "Automata.PushDown.DPDA.step: "
                       ++ "transition function is not defined for any of "
                       ++ "(s, ε, ε), (s, ε, a), (s, t, ε) or (s, t, a)."
                in error msg
         -- exactly one of δ(s, ε, a) and δ(s, t, a) are not ∅.
         Just c' -> Left c'
 
-accepts :: (Ord s, Eq t) => SipserDPDA s a t -> [a] -> Bool
+accepts :: (Ord s, Eq t) => DPDA s a t -> [a] -> Bool
 accepts pda as = go as (startState pda, [])
   where
     go [] c =
@@ -159,16 +159,6 @@ accepts pda as = go as (startState pda, [])
         -- If we are in an infinite cycle but have not read all input,
         -- we reject the string. [1, p. 131]
         Right _ -> False
-
--- A type of Sipser DPDA with a dedicated end-of-input symbol.
-type EOISipserDPDA s a t = SipserDPDA s (Ended a) t
-
--- | Wrapper acceptance function for Sipser DPDAs with a dedicated end-of-input symbol,
--- likely created via 'Automata.PushDown.FPDA.toSipserDPDA'.
---
--- Automatically ends the input word with the dedicated end-of-input symbol.
-acceptsEOI :: (Ord s, Eq t) => EOISipserDPDA s a t -> [a] -> Bool
-acceptsEOI pda w = accepts pda (fmap ISymbol w <> [End])
 
 {- Bibliography
  - ~~~~~~~~~~~~

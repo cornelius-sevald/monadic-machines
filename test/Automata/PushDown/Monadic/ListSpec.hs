@@ -7,8 +7,8 @@ module Automata.PushDown.Monadic.ListSpec where
 import qualified Automata.PushDown.Monadic as MPDA
 import Automata.PushDown.Monadic.List (ListPDA)
 import qualified Automata.PushDown.Monadic.List as ListPDA
-import qualified Automata.PushDown.SipserNPDA as SNPDA
-import qualified Automata.PushDown.SipserNPDASpec as SNPDASpec
+import qualified Automata.PushDown.NPDA as NPDA
+import qualified Automata.PushDown.NPDASpec as NPDASpec
 import Automata.PushDown.Util (Bottomed (..))
 import Data.Alphabet
 import Data.Containers.ListUtils (nubOrd)
@@ -26,7 +26,7 @@ import Test.Util
 -- | The number of states used in random PDAs.
 type N = 3
 
--- | The type of states used in random Sipser NPDAs.
+-- | The type of states used in random NPDAs.
 type S = NAry N
 
 -- | The type of read states used in random List PDAs.
@@ -110,10 +110,10 @@ spec = do
             let m = mkMPDA nubOrd m' :: ListPDA.ListPDA R P A T
                 mInv = ListPDA.invert m
              in ListPDA.acceptsDemonic m w `shouldNotBe` ListPDA.acceptsAngelig mInv w
-  describe "fromSipserNPDA" $
+  describe "fromNPDA" $
     modifyMaxSize (`div` 10) $ do
       context "With an looping PDA that eventually overflows the stack symbol" $ do
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOverflow
+        let pda = ListPDA.fromNPDA NPDASpec.npdaOverflow
         it "rejects(∃) the empty string" $ do
           [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
         prop "accepts(∃) all strings of length 1" $
@@ -121,7 +121,7 @@ spec = do
         prop "rejects(∃) all strings of length >1" $
           \(n, m, w) -> (n : m : w) `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "With a PDA with an growing ε-cycle" $ do
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaEpsilonCycle
+        let pda = ListPDA.fromNPDA NPDASpec.npdaEpsilonCycle
         it "rejects(∃) the empty string" $
           [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
         it "accepts(∃) the string of length 1" $
@@ -131,7 +131,7 @@ spec = do
             let w = w1 : w2 : ws
              in w `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "With a PDA with several growing ε-cycles" $ do
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaEpsilonCycles
+        let pda = ListPDA.fromNPDA NPDASpec.npdaEpsilonCycles
         it "rejects(∃) the empty string" $
           [] `shouldNotSatisfy` ListPDA.acceptsAngelig pda
         prop "accepts(∃) all strings with length >=1 and <=3" $
@@ -144,43 +144,43 @@ spec = do
              in w `shouldNotSatisfy` ListPDA.acceptsAngelig pda
       context "For a NPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
         let (lang, langComp) = (langOkIk, langCompOkIk)
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaOkIk
+        let pda = ListPDA.fromNPDA NPDASpec.npdaOkIk
         prop "accepts(∃) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
         prop "rejects(∃) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a NPDA recognizing L = {w | w is a palindrome}" $ do
         let (lang, langComp) = (langPalindromes, langCompPalindromes)
-        let pda = ListPDA.fromSipserNPDA SNPDASpec.npdaPalindromes
+        let pda = ListPDA.fromNPDA NPDASpec.npdaPalindromes
         prop "accepts(∃) strings in L" $ do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
         prop "rejects(∃) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
-      context "For a random Sipser NPDA" $
+      context "For a random NPDA" $
         -- We have to reduce the size a crazy amount,
         -- but otherwise it runs for ages.
         -- Even at this measly size, it has caught a few bugs.
         modifyMaxSize (const 3) $ do
           prop "recognizes the same language" $ do
             \sdpda' w ->
-              let snpda = mkSipserNPDA sdpda' :: SNPDA.SipserNPDA S A T
-                  m = ListPDA.fromSipserNPDA snpda
-               in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts snpda w
-  describe "toSipserNPDA" $ do
+              let snpda = mkNPDA sdpda' :: NPDA.NPDA S A T
+                  m = ListPDA.fromNPDA snpda
+               in ListPDA.acceptsAngelig m w `shouldBe` NPDA.accepts snpda w
+  describe "toNPDA" $ do
     context "For a List PDA recognizing(∃) L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
-      let snpda = ListPDA.toSipserNPDA pdaOkIk
+      let snpda = ListPDA.toNPDA pdaOkIk
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SNPDA.accepts snpda) <$> lang
+        (`shouldSatisfy` NPDA.accepts snpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
+        (`shouldNotSatisfy` NPDA.accepts snpda) <$> langComp
     context "For a List PDA recognizing(∃) L = {w | w is a palindrome}" $ do
       let (lang, langComp) = (langPalindromes, langCompPalindromes)
-      let snpda = ListPDA.toSipserNPDA pdaPalindromes
+      let snpda = ListPDA.toNPDA pdaPalindromes
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SNPDA.accepts snpda) <$> lang
+        (`shouldSatisfy` NPDA.accepts snpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SNPDA.accepts snpda) <$> langComp
+        (`shouldNotSatisfy` NPDA.accepts snpda) <$> langComp
     context "For a random List PDA" $
       -- We have to reduce the size a crazy amount,
       -- but otherwise it runs for (maybe literally) ages.
@@ -188,8 +188,8 @@ spec = do
         prop "recognizes(∃) the same language" $ do
           \m' w ->
             let m = mkMPDA nubOrd m' :: ListPDA.ListPDA R P A T
-                sdpda = ListPDA.toSipserNPDA m
-             in ListPDA.acceptsAngelig m w `shouldBe` SNPDA.accepts sdpda w
+                sdpda = ListPDA.toNPDA m
+             in ListPDA.acceptsAngelig m w `shouldBe` NPDA.accepts sdpda w
 
 {- Example List PDAs
  -

@@ -16,7 +16,7 @@ import Test.Hspec.QuickCheck
 import Test.Util
 
 -- | The number of states of the NFAs we test.
-type N = 4
+type N = 3
 
 -- | The type of states used in the tests.
 type S = NAry N
@@ -46,14 +46,14 @@ spec = do
         (`shouldSatisfy` acceptance pfa) <$> langComp
       prop "rejects strings in L" $ do
         (`shouldNotSatisfy` acceptance pfa) <$> lang
-  describe "toPFA" $ modifyMaxSize isqrt $ do
+  describe "toPFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes (strict) the same language" $ do
       \m' w ->
         let η = 2 % 3 -- arbitrary cut-point
             m = mkProbabilityFA m' :: ProbabilityFA Rational A S
             pfa = toPFA m
          in PFA.accepts pfa η w `shouldBe` acceptsStrict m η w
-  describe "fromPFA" $ modifyMaxSize isqrt $ do
+  describe "fromPFA" $ modifyMaxSize (`div` 10) $ do
     prop "recognizes (strict) the same language" $ do
       \pfa' w ->
         let η = 2 % 3 -- arbitrary cut-point

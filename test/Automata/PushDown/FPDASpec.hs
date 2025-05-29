@@ -5,10 +5,10 @@
 
 module Automata.PushDown.FPDASpec where
 
+import qualified Automata.PushDown.DPDA as DPDA
+import qualified Automata.PushDown.DPDASpec as DPDASpec
 import Automata.PushDown.FPDA (FPDA (..))
 import qualified Automata.PushDown.FPDA as FPDA
-import qualified Automata.PushDown.SipserDPDA as SDPDA
-import qualified Automata.PushDown.SipserDPDASpec as SDPDASpec
 import Automata.PushDown.Util
 import Data.Alphabet
 import Data.NAry (NAry)
@@ -47,18 +47,18 @@ spec = do
         (`shouldSatisfy` FPDA.accepts dpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts dpda) <$> langComp
-  describe "fromSipserDPDA" $ do
-    context "With an endlessly looping Sipser DPDA" $ do
-      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaLoop
+  describe "fromDPDA" $ do
+    context "With an endlessly looping DPDA" $ do
+      let fpda = FPDA.fromDPDA DPDASpec.dpdaLoop
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` FPDA.accepts fpda
       prop "accepts all strings of length 1" $
         \n -> [n] `shouldSatisfy` FPDA.accepts fpda
       prop "rejects all strings of length >1" $
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
-    describe "With a Sipser DPDA accepting only strings of numbers that sum to ≥ 5" $
+    describe "With a DPDA accepting only strings of numbers that sum to ≥ 5" $
       modifyMaxSize (`div` 10) $ do
-        let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaSumLeastFive
+        let fpda = FPDA.fromDPDA DPDASpec.dpdaSumLeastFive
         let ws' :: ([Integer] -> Bool) -> Gen [Ended Word8]
             ws' f = fmap end $ arbitrary `suchThat` (f . (fromIntegral <$>))
         prop "rejects all strings whose sum < 5" $
@@ -67,8 +67,8 @@ spec = do
         prop "accepts all strings whose sum ≥ 5" $
           let ws = ws' ((>= 5) . sum)
            in (`shouldSatisfy` FPDA.accepts fpda) <$> ws
-    context "With an Sipser DPDA popping from an empty stack" $ do
-      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaPopEmpty
+    context "With a DPDA popping from an empty stack" $ do
+      let fpda = FPDA.fromDPDA DPDASpec.dpdaPopEmpty
       it "rejects the empty string" $ do
         [] `shouldNotSatisfy` FPDA.accepts fpda
       prop "accepts all strings of length 1" $
@@ -77,47 +77,47 @@ spec = do
         \(n, m, w) -> (n : m : w) `shouldNotSatisfy` FPDA.accepts fpda
     context "For a DPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
-      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaOkIk
+      let fpda = FPDA.fromDPDA DPDASpec.dpdaOkIk
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
     context "For a DPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
       let (lang, langComp) = (langMirrored, langCompMirrored)
-      let fpda = FPDA.fromSipserDPDA SDPDASpec.dpdaMirrored
+      let fpda = FPDA.fromDPDA DPDASpec.dpdaMirrored
       prop "accepts strings in L" $ do
         (`shouldSatisfy` FPDA.accepts fpda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` FPDA.accepts fpda) <$> langComp
-    context "For a random Sipser DPDA" $ do
+    context "For a random DPDA" $ do
       modifyMaxSize (`div` 5) $ do
         prop "recognizes the same language" $ do
           \sdpda' w ->
-            let sdpda = mkSipserDPDA sdpda' :: SDPDA.SipserDPDA S A T
-                fpda = FPDA.fromSipserDPDA sdpda
-             in FPDA.accepts fpda w `shouldBe` SDPDA.accepts sdpda w
-  describe "toSipserDPDA" $ do
+            let sdpda = mkDPDA sdpda' :: DPDA.DPDA S A T
+                fpda = FPDA.fromDPDA sdpda
+             in FPDA.accepts fpda w `shouldBe` DPDA.accepts sdpda w
+  describe "toDPDA" $ do
     context "For a FPDA recognizing L = {OᵏIᵏ | k ≥ 0}" $ do
       let (lang, langComp) = (langOkIk, langCompOkIk)
-      let sdpda = FPDA.toSipserDPDA fpdaOkIk
+      let sdpda = FPDA.toDPDA fpdaOkIk
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
+        (`shouldSatisfy` DPDA.accepts sdpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SDPDA.accepts sdpda) <$> langComp
+        (`shouldNotSatisfy` DPDA.accepts sdpda) <$> langComp
     context "For a FPDA recognizing L = {w·c·w^R | c ∉ w}" $ do
       let (lang, langComp) = (langMirrored, langCompMirrored)
-      let sdpda = FPDA.toSipserDPDA fpdaMirrored
+      let sdpda = FPDA.toDPDA fpdaMirrored
       prop "accepts strings in L" $ do
-        (`shouldSatisfy` SDPDA.accepts sdpda) <$> lang
+        (`shouldSatisfy` DPDA.accepts sdpda) <$> lang
       prop "rejects strings not in L" $ do
-        (`shouldNotSatisfy` SDPDA.accepts sdpda) <$> langComp
+        (`shouldNotSatisfy` DPDA.accepts sdpda) <$> langComp
     context "For a random FPDA" $
       modifyMaxSize (`div` 2) $ do
         prop "recognizes the same language" $ do
           \fpda' w ->
             let fpda = mkFPDA fpda' :: FPDA.FPDA S S A T
-                sdpda = FPDA.toSipserDPDA fpda
-             in FPDA.accepts fpda w `shouldBe` SDPDA.accepts sdpda w
+                sdpda = FPDA.toDPDA fpda
+             in FPDA.accepts fpda w `shouldBe` DPDA.accepts sdpda w
 
 {- Example FPDAs -}
 

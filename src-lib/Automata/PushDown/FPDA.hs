@@ -6,8 +6,8 @@
 -- | Functional Deterministic Pushdown Automata
 module Automata.PushDown.FPDA where
 
-import Automata.PushDown.SipserDPDA (SipserDPDA (SipserDPDA))
-import qualified Automata.PushDown.SipserDPDA as SDPDA
+import Automata.PushDown.DPDA (DPDA (DPDA))
+import qualified Automata.PushDown.DPDA as DPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Control.Monad (foldM)
 import Data.Foldable (toList)
@@ -63,7 +63,7 @@ accepts fpda as =
         Nothing -> False
         Just (q, _) -> q `Set.member` finalStates fpda
 
--- | Convert a Functional PDA to a Sipser Deterministic PDA.
+-- | Convert a Functional PDA to a Deterministic PDA.
 --
 -- We let the states be Q = (R + P) ∪ {q₀}, where q₀ is a designated start state.
 -- From q₀ we put the start symbol Z₀ on the stack, and then move to the
@@ -75,12 +75,12 @@ accepts fpda as =
 --   δ(p, t, ε) = (δ_pop(p, t), ε)    if δ_pop(p, t) is a pop state,
 --              =  δ_pop(p, t)        otherwise.
 -- We leave δ undefined for all other inputs.
-toSipserDPDA :: (Ord r, Ord p) => FPDA r p a t -> SipserDPDA (Maybe (Either r p)) a t
-toSipserDPDA fpda =
-  SipserDPDA
-    { SDPDA.startState = _startState,
-      SDPDA.finalStates = _finalStates,
-      SDPDA.trans = _trans
+toDPDA :: (Ord r, Ord p) => FPDA r p a t -> DPDA (Maybe (Either r p)) a t
+toDPDA fpda =
+  DPDA
+    { DPDA.startState = _startState,
+      DPDA.finalStates = _finalStates,
+      DPDA.trans = _trans
     }
   where
     -- Mark a state as a read state
@@ -103,7 +103,7 @@ toSipserDPDA fpda =
     collect (Left (r, ts)) = (Left r, ts)
     collect (Right p) = (Right p, [])
 
--- | Type of read state used in 'fromSipserDPDA'.
+-- | Type of read state used in 'fromDPDA'.
 -- Has a dedicated start state and "stuck" state,
 -- meaining that the DPDA has no more valid moves,
 -- e.g. if it pops an empty stack.
@@ -113,7 +113,7 @@ data ReadState s
   | Stuck
   deriving (Show, Eq, Ord)
 
--- | Type of pop state used in 'fromSipserDPDA'.
+-- | Type of pop state used in 'fromDPDA'.
 -- It is the cartesian product of a state 's',
 -- and an optional input symbol 'a'.
 -- This is so that the FPDA can simulate a
@@ -128,15 +128,15 @@ instance (Universe s) => Universe (ReadState s) where
 
 instance (Finite s) => Finite (ReadState s)
 
--- | Convert a Sipser DPDA to a Functional PDA.
+-- | Convert a  DPDA to a Functional PDA.
 --
 -- TODO: Explain the inner machinations of this beast.
-fromSipserDPDA ::
+fromDPDA ::
   forall s a t.
   (Finite s, Finite a, Finite t, Ord s, Eq t) =>
-  SipserDPDA s a t ->
+  DPDA s a t ->
   FPDA (ReadState s, Bool) (PopState s a, Bool) a (Bottomed t)
-fromSipserDPDA pda = fpda
+fromDPDA pda = fpda
   where
     fpda =
       FPDA
@@ -148,23 +148,23 @@ fromSipserDPDA pda = fpda
         }
     _startSymbol = Bottom
     _startState =
-      -- If a final state is reachable from the start state of the Sipser DPDA
+      -- If a final state is reachable from the start state of the  DPDA
       -- without consuming any input, we want to mark the start state as final.
-      let b = finalReachable (SDPDA.startState pda, [])
+      let b = finalReachable (DPDA.startState pda, [])
        in (Start, b)
     -- The final states of the FPDA is the union of the final states
-    -- of the Sipser DPDA, and *all* of the states of the FPDA
+    -- of the  DPDA, and *all* of the states of the FPDA
     -- marked with the "final" boolean flag.
     _finalStates =
-      Set.map ((,False) . ReadState) (SDPDA.finalStates pda)
+      Set.map ((,False) . ReadState) (DPDA.finalStates pda)
         `Set.union` Set.map (,True) (Set.fromList universeF)
     -- Read transition function.
     _transRead =
       \case
         ((Start, _), a) ->
-          let q = SDPDA.startState pda
+          let q = DPDA.startState pda
            in -- From the start state, we only want to progress if a read state is
-              -- reachable from the start state of the Sipser DPDA via ε-transitions.
+              -- reachable from the start state of the  DPDA via ε-transitions.
               case nextState (q, []) of
                 -- From here, we'd like to go directly to a pop state `(q', Just a, False)`,
                 -- but this means we can't push `ts'` to the stack!
@@ -191,7 +191,7 @@ fromSipserDPDA pda = fpda
         -- Case 1: in state `q` with input symbol `a` and stack symbol `t`.
         ((PopState q (Just a), _), SSymbol t) ->
           -- We know we are in a read state, and so one of
-          -- δ(q, t, a) or δ(q, ε, a) must be defined in the Sipser DPDA.
+          -- δ(q, t, a) or δ(q, ε, a) must be defined in the  DPDA.
           -- If δ(q, ε, a) is defined, we don't want to consume `t`,
           -- and so we pass `[t]` to `stepDPDA`, which will put `t` at
           -- the bottom of the stack after the δ transition.
@@ -200,11 +200,11 @@ fromSipserDPDA pda = fpda
            in case catMaybes [readAndPop, readOnly] of
                 [Left ((r', b'), ts')] -> Left ((r', b'), ts')
                 [Right (p', b')] -> Right (p', b')
-                _ -> error "Malformed Sipser DPDA"
+                _ -> error "Malformed DPDA"
         -- Case 2: in state `q` with input symbol `a` and empty stack.
         ((PopState q (Just a), _), Bottom) ->
           -- We know we are in a read state, and so one of
-          -- δ(q, t, a) or δ(q, ε, a) must be defined in the Sipser DPDA.
+          -- δ(q, t, a) or δ(q, ε, a) must be defined in the DPDA.
           case stepDPDA [] (q, Nothing, Just a) of
             -- If δ(q, t, a) is defined, then we are popping an empty stack,
             -- and so we are stuck.
@@ -219,23 +219,23 @@ fromSipserDPDA pda = fpda
         -- Case 3: in state `q` with no input symbol and stack symbol `t`.
         ((PopState q Nothing, b), SSymbol t) ->
           -- We know we are in a pop state, and not a read state, and so
-          -- δ(q, t, ε) must be defined in the Sipser DPDA.
+          -- δ(q, t, ε) must be defined in the DPDA.
           -- As we are not reading any new input, we propagate the "final" flag.
           case stepDPDA [] (q, Just t, Nothing) of
             Just (Left ((r', b'), ts')) -> Left ((r', b || b'), ts')
             Just (Right (p', b')) -> Right (p', b || b')
-            Nothing -> error "Malformed Sipser DPDA"
+            Nothing -> error "Malformed DPDA"
         -- Case 4: in state `q` with no input symbol and empty stack.
         ((PopState _ Nothing, b), Bottom) ->
           -- We know we are in a pop state, and not a read state, and so
-          -- δ(q, t, ε) must be defined in the Sipser DPDA.
+          -- δ(q, t, ε) must be defined in the DPDA.
           -- As the stack is empty, this means that we are stuck.
           stuck b
-    -- Step the Sipser DPDA with configuration `(q, t, a)` and remaining stack `ts`,
+    -- Step the DPDA with configuration `(q, t, a)` and remaining stack `ts`,
     -- and then advance to the next reachable read- or pop state.
     stepDPDA :: [t] -> (s, Maybe t, Maybe a) -> Maybe (Either ((ReadState s, Bool), [Bottomed t]) (PopState s a, Bool))
     stepDPDA ts (q, t, a) = do
-      (q', ts') <- SDPDA.trans pda (q, t, a)
+      (q', ts') <- DPDA.trans pda (q, t, a)
       pure $ nextState (q', ts' ++ ts)
     -- Transitively advance to the next read- or pop state, from state `q` with stack `ts`.
     -- If we reach a read state, we also return the remaining stack symbols.
@@ -245,13 +245,13 @@ fromSipserDPDA pda = fpda
     -- indicating that a final state was encountered along the way.
     nextState :: (s, [t]) -> Either ((ReadState s, Bool), [Bottomed t]) (PopState s a, Bool)
     nextState (q, ts) =
-      case SDPDA.stepE pda [] (q, ts) of
+      case DPDA.stepE pda [] (q, ts) of
         Right qs ->
-          let b = (Set.fromList . toList) qs `intersects` SDPDA.finalStates pda
+          let b = (Set.fromList . toList) qs `intersects` DPDA.finalStates pda
            in stuck b
         Left ((q', ts') :| cs)
           | isReadState q' ->
-              let b = Set.fromList (q' : fmap fst cs) `intersects` SDPDA.finalStates pda
+              let b = Set.fromList (q' : fmap fst cs) `intersects` DPDA.finalStates pda
                in -- We step to the new state `q'`,
                   -- pushing the new stack symbols `ts''`,
                   -- and with the boolean flag `b`
@@ -259,10 +259,10 @@ fromSipserDPDA pda = fpda
                   Left ((ReadState q', b), SSymbol <$> ts')
         Left ((q', []) :| cs)
           | isPopState q' ->
-              let b = Set.fromList (q' : fmap fst cs) `intersects` SDPDA.finalStates pda
+              let b = Set.fromList (q' : fmap fst cs) `intersects` DPDA.finalStates pda
                in Right (PopState q' Nothing, b)
-        Left _ -> error "Malformed Sipser DPDA"
-    -- The stuck state is a read state which indicates that the Sipser PDA can't
+        Left _ -> error "Malformed DPDA"
+    -- The stuck state is a read state which indicates that the PDA can't
     -- make any more meaningful transitions,
     -- which can happens either if popping from an empty stack,
     -- or reaching an infinite cycle where we read no input and don't shrink the stack.
@@ -273,21 +273,21 @@ fromSipserDPDA pda = fpda
     -- Check if a final state is reachable from state `q` with stack symbols `ts`,
     -- but consuming no input.
     finalReachable (q, ts) =
-      let reachable = toList $ either (fst <$>) id $ SDPDA.stepE pda [] (q, ts)
-       in Set.fromList reachable `intersects` SDPDA.finalStates pda
-    -- Check if a state in the Sipser DPDA is a read state.
+      let reachable = toList $ either (fst <$>) id $ DPDA.stepE pda [] (q, ts)
+       in Set.fromList reachable `intersects` DPDA.finalStates pda
+    -- Check if a state in the DPDA is a read state.
     -- A state q is counted as a read state if either δ(q, ε, a) or δ(q, t, a)
     -- is defined for some arbitrary a ∈ Σ and t ∈ Γ.
     isReadState, isPopState :: s -> Bool
     isReadState q =
-      isJust (SDPDA.trans pda (q, Nothing, Just arbitraryInputSymbol))
-        || isJust (SDPDA.trans pda (q, Just arbitraryStackSymbol, Just arbitraryInputSymbol))
-    -- Check if a state in the Sipser DPDA is a pop state.
+      isJust (DPDA.trans pda (q, Nothing, Just arbitraryInputSymbol))
+        || isJust (DPDA.trans pda (q, Just arbitraryStackSymbol, Just arbitraryInputSymbol))
+    -- Check if a state in the DPDA is a pop state.
     -- A state q is counted as a pop state if δ(q, t, ε) is defined
     -- for some arbitrary t ∈ Γ.
     isPopState q =
-      isJust (SDPDA.trans pda (q, Just arbitraryStackSymbol, Nothing))
-        || isJust (SDPDA.trans pda (q, Just arbitraryStackSymbol, Just arbitraryInputSymbol))
+      isJust (DPDA.trans pda (q, Just arbitraryStackSymbol, Nothing))
+        || isJust (DPDA.trans pda (q, Just arbitraryStackSymbol, Just arbitraryInputSymbol))
     arbitraryInputSymbol :: a
     arbitraryInputSymbol = head universeF
     arbitraryStackSymbol :: t

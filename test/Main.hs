@@ -9,13 +9,13 @@ import qualified Automata.FiniteState.Monadic.ProbabilitySpec
 import qualified Automata.FiniteState.Monadic.PropositionSpec
 import qualified Automata.FiniteState.NFASpec
 import qualified Automata.FiniteState.PFASpec
+import qualified Automata.PushDown.DPDASpec
 import qualified Automata.PushDown.FPDASpec
 import qualified Automata.PushDown.Monadic.IdentitySpec
 import qualified Automata.PushDown.Monadic.ListSpec
 import qualified Automata.PushDown.Monadic.ProbabilitySpec
 import qualified Automata.PushDown.Monadic.PropositionSpec
-import qualified Automata.PushDown.SipserDPDASpec
-import qualified Automata.PushDown.SipserNPDASpec
+import qualified Automata.PushDown.NPDASpec
 import qualified Data.ListListSpec
 import qualified Data.Logic.NormalFormSpec
 import qualified Data.Logic.PropositionSpec
@@ -44,10 +44,10 @@ spec = do
         describe "Proposition FA" Automata.FiniteState.Monadic.PropositionSpec.spec
         describe "Probability FA" Automata.FiniteState.Monadic.ProbabilitySpec.spec
     describe "Pushdown Automata" $ do
-      describe "Sipser Deterministic PDAs" $ do
-        Automata.PushDown.SipserDPDASpec.spec
-      describe "Sipser Non-deterministic PDAs" $ do
-        Automata.PushDown.SipserNPDASpec.spec
+      describe "Deterministic PDAs" $ do
+        Automata.PushDown.DPDASpec.spec
+      describe "Non-deterministic PDAs" $ do
+        Automata.PushDown.NPDASpec.spec
       describe "Functional Deterministic PDAs" $ do
         Automata.PushDown.FPDASpec.spec
       describe "Monadic PDA" $ do

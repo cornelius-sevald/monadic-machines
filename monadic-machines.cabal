@@ -78,8 +78,8 @@ library
         Automata.FiniteState.Monadic.Proposition
         Automata.FiniteState.Monadic.Probability
         Automata.PushDown.Util
-        Automata.PushDown.SipserDPDA
-        Automata.PushDown.SipserNPDA
+        Automata.PushDown.DPDA
+        Automata.PushDown.NPDA
         Automata.PushDown.FPDA
         Automata.PushDown.Monadic
         Automata.PushDown.Monadic.Identity
@@ -156,8 +156,8 @@ test-suite monadic-machines-test
         Automata.FiniteState.Monadic.ListListSpec
         Automata.FiniteState.Monadic.PropositionSpec
         Automata.FiniteState.Monadic.ProbabilitySpec
-        Automata.PushDown.SipserDPDASpec
-        Automata.PushDown.SipserNPDASpec
+        Automata.PushDown.DPDASpec
+        Automata.PushDown.NPDASpec
         Automata.PushDown.FPDASpec
         Automata.PushDown.Monadic.IdentitySpec
         Automata.PushDown.Monadic.ListSpec

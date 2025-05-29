@@ -2,8 +2,8 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TupleSections #-}
 
--- | Sipser Non-deterministic Pushdown Automata.
-module Automata.PushDown.SipserNPDA where
+-- | Non-deterministic Pushdown Automata.
+module Automata.PushDown.NPDA where
 
 import Automata.PushDown.Util
 import Control.Arrow (Arrow ((***)))
@@ -11,7 +11,7 @@ import Data.Maybe (isNothing)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
--- | A Sipser Non-deterministic Pushdown Automaton (SipserNPDA)
+-- | A non-deterministic Pushdown Automaton (NPDA)
 -- is a 6-tuple (Q, Σ, Γ, δ, q_1, F), where
 --
 --    1. Q is a finite set called the *states*,
@@ -21,14 +21,14 @@ import qualified Data.Set as Set
 --    4. q_1 ∈ Q is the *start state*, and
 --    5. F ⊆ Q is the *set of final states*. [1]
 --
--- In the book, the transition function may only push zero or
+-- In [1], the transition function may only push zero or
 -- one stack symbols, but allowing it to push an arbitrary
 -- amount doesn't change its power and makes conversions
 -- to other types of NPDAs much simpler.
 --
 -- The states, input- and stack alphabet is implicitly given by the types
 -- `s`, `a` and `t` respectively.
-data SipserNPDA s a t = SipserNPDA
+data NPDA s a t = NPDA
   { -- | The start state q_1.
     startState :: s,
     -- | The set of final states F.
@@ -42,7 +42,7 @@ type Config s t = (s, [t])
 -- | Perform a step in state `s` with (optional) input symbol `a`.
 stepStack ::
   (Ord s, Ord t) =>
-  SipserNPDA s a t ->
+  NPDA s a t ->
   Config s t ->
   Maybe a ->
   Set (Config s t)
@@ -57,7 +57,7 @@ stepStack pda (q, ts) a =
 stepE ::
   (Ord s, Ord t) =>
   -- | The PDA.
-  SipserNPDA s a t ->
+  NPDA s a t ->
   -- | The current state/stack configuration.
   Config s t ->
   -- | A set of new configurations.
@@ -82,7 +82,7 @@ stepE pda = go []
 stepE' ::
   (Ord s, Ord t) =>
   -- | The PDA.
-  SipserNPDA s a t ->
+  NPDA s a t ->
   -- | The current state/stack configuration.
   ((s, [t]), Bool) ->
   -- | A set of new configurations.
@@ -105,7 +105,7 @@ stepE' pda = go []
           Set.singleton c `Set.union` Set.unions (Set.map (go seen') new)
 
 -- | Perform a step on a single input symbol.
-step :: (Ord s, Ord t) => SipserNPDA s a t -> a -> Config s t -> Set (Config s t)
+step :: (Ord s, Ord t) => NPDA s a t -> a -> Config s t -> Set (Config s t)
 step pda a c =
   -- We get the set of configurations reachable
   -- without consuming any input.
@@ -115,7 +115,11 @@ step pda a c =
   where
     f c' = stepStack pda c' (Just a)
 
-accepts :: (Ord s, Ord t) => SipserNPDA s a t -> [a] -> Bool
+-- | The PDA accepts a word iff. there exists a
+-- path from the start state to a final state after
+-- reading the entire input,
+-- *and this path contains no non-decreasing ε-cycles*
+accepts :: (Ord s, Ord t) => NPDA s a t -> [a] -> Bool
 accepts pda as = go as (startState pda, [])
   where
     go [] c =
@@ -130,11 +134,11 @@ accepts pda as = go as (startState pda, [])
 -- M accepts w iff. either M1 or M2 (or both) accepts w.
 union ::
   (Ord s1, Ord s2, Ord t1, Ord t2) =>
-  SipserNPDA s1 a t1 ->
-  SipserNPDA s2 a t2 ->
-  SipserNPDA (Maybe (Either s1 s2)) a (Either t1 t2)
+  NPDA s1 a t1 ->
+  NPDA s2 a t2 ->
+  NPDA (Maybe (Either s1 s2)) a (Either t1 t2)
 union m1 m2 =
-  SipserNPDA
+  NPDA
     { startState = _startState,
       finalStates = _finalStates,
       trans = _trans
