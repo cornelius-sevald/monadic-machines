@@ -44,15 +44,10 @@ data DPDA s a t = DPDA
     trans :: (s, Maybe t, Maybe a) -> Maybe (s, [t])
   }
 
--- | Perform a step in state `s` with (optional) input symbol `a`.
---
--- The step can either pop the stack or leave it be, but may not do both,
--- or it may be undefined for the given (or not given) input symbol.
--- We try both, and choose whichever one was successful (if any),
--- and return `Just` the successor state, along with the remaining stack.
--- If none of the two options were successful, we return `Nothing`,
-stepStack :: DPDA s a t -> s -> [t] -> Maybe a -> Maybe (s, [t])
-stepStack pda s ts a =
+-- | Perform a single frame rule step.
+-- Computes a β that satisfies (ts, q, a) ⊢ β, if such exists.
+stepFrame :: DPDA s a t -> s -> [t] -> Maybe a -> Maybe (s, [t])
+stepFrame pda s ts a =
   let ress = mapMaybe go $ split01 ts
    in case ress of
         -- both δ(s, ε, a) = ∅ and δ(s, t, a) = ∅.
@@ -64,71 +59,83 @@ stepStack pda s ts a =
         [_, _] ->
           let x_str = case a of Nothing -> "ε"; _ -> "a"
               msg =
-                "Automata.PushDown.DPDA.stepStack: "
+                "Automata.PushDown.DPDA.stepFrame: "
                   ++ "transition function is defined for both "
-                  ++ ("(s, ε, " ++ x_str ++ ") and (s, t, " ++ x_str ++ ").")
+                  ++ ("(s, ε, " ++ x_str ++ ") and ")
+                  ++ ("(s, t, " ++ x_str ++ ").")
            in error msg
         -- `ress` clearly has length <= 2, so this should never happen.
-        _ -> error "Automata.PushDown.DPDA.stepStack: `length ress` > 2 (this should never happen)"
+        _ ->
+          let msg =
+                "Automata.PushDown.DPDA.stepFrame: "
+                  ++ "`length ress` > 2 "
+                  ++ "(this should never happen)"
+           in error msg
   where
     go (t, ts') = do
       (s', t') <- trans pda (s, t, a)
       pure (s', t' ++ ts')
 
--- | Perform a step without consuming any input.
--- Either this results in a new configuration (state/stack pair),
--- or we reach an infinite loop of states.
+-- | Compute the ε-closure of this state/stack,
+--
+-- Either this results in a list of configurations
+-- where exactly one of them has no successor,
+-- or we reach a non-decreasing ε-cycle of states.
 stepE ::
   (Eq s, Eq t) =>
   -- | The DPDA.
   DPDA s a t ->
-  -- | A list of state/stack configurations we have previously seen.
-  [(s, [t])] ->
-  -- | The current state/stack configuration.
+  -- | The current configuration.
   (s, [t]) ->
-  -- | Either a list of all state/stack configuration encountered until halting,
+  -- | Either a list of all configurations encountered until halting,
   -- or the states encountered until an infinite loop was reached.
   Either (NonEmpty (s, [t])) (NonEmpty s)
-stepE pda seen c@(s, ts) =
-  -- Step the stack, trying both popping the top symbol and leaving it be.
-  case stepStack pda s ts Nothing of
-    -- δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
-    Nothing -> Left $ c :| seen
-    -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
-    Just c' ->
-      let seen' = c : seen
-       in case dejavu seen' c' of
-            -- If we have been in a similar configuration,
-            -- we are in an infinite loop.
-            Just (s', _) -> Right $ s' :| (fst <$> seen')
-            -- Otherwise we step on this new configuration.
-            Nothing -> stepE pda seen' c'
+stepE pda = go []
+  where
+    go seen c@(s, ts) =
+      -- Apply the frame rule.
+      case stepFrame pda s ts Nothing of
+        -- δ(s, ε, ε) = ∅ and either the stack is empty,
+        -- or δ(s, t, ε) = ∅.
+        Nothing -> Left $ c :| seen
+        -- exactly one of δ(s, ε, ε) and δ(s, t, ε) are not ∅.
+        Just c' ->
+          let seen' = c : seen
+           in case dejavu seen' c' of
+                -- If we have been in a similar configuration,
+                -- we are in an infinite loop.
+                Just (s', _) -> Right $ s' :| (fst <$> seen')
+                -- Otherwise we step on this new configuration.
+                Nothing -> go seen' c'
 
-step :: (Eq s, Eq t) => DPDA s a t -> a -> (s, [t]) -> Either (s, [t]) [s]
+step ::
+  (Eq s, Eq t) =>
+  DPDA s a t ->
+  a ->
+  (s, [t]) ->
+  Either (s, [t]) [s]
 step pda a (s, ts) =
-  case stepE pda [] (s, ts) of
+  case stepE pda (s, ts) of
     -- We have reached an infinite loop of states `ss`.
     Right ss -> Right $ toList ss
     -- There are no more ε-transition available,
-    -- so we know that δ(s, ε, ε) = ∅ and either the stack is empty, or δ(s, t, ε) = ∅.
+    -- so we know that δ(s, ε, ε) = ∅ and either the stack is empty,
+    -- or δ(s, t, ε) = ∅.
     Left ((s', ts') :| _) ->
-      case stepStack pda s' ts' (Just a) of
-        -- δ(s, ε, a) = ∅ and either the stack is empty, or δ(s, t, a) = ∅.
+      case stepFrame pda s' ts' (Just a) of
+        -- δ(s, ε, a) = ∅ and either the stack is empty,
+        -- or δ(s, t, a) = ∅.
         -- This gives us two cases:
         --   1. if the stack not empty, then neither
-        --      δ(s, ε, ε), δ(s, ε, a), δ(s, t, ε) nor δ(s, t, a) is defined,
-        --      which is an error.
-        --   2. if the stack is empty, one of δ(s, t, ε) or δ(s, t, a) might be defined,
-        --      and if it is, we reject the input as we can't pop from an empty stack. [1, p. 131]
-        --      They might also not be defined, which would be an error,
-        --      but I can't justify "forging" an arbitrary value for `t`
-        --      just to check, and we are already working under the assumption
-        --      that exactly one transition is defined,
-        --      so we just reject the input even if there might be an error.
+        --      δ(s, ε, ε),    δ(s, ε, a),
+        --      δ(s, t, ε) nor δ(s, t, a)
+        --      is defined, which is an error.
+        --   2. if the stack is empty, we reject the input
+        --      as we can't pop from an empty stack [1, p. 131].
         --
         --  To actually signal a rejection, we return `Right []`,
-        --  i.e. an infinite loop of zero states, which doesn't make much
-        --  sense but is a nice way to say that the string should be rejected.
+        --  which technically signals an infinite loop of zero states,
+        --  which doesn't make much sense, but works.
         Nothing ->
           if null ts'
             then Right []
@@ -145,8 +152,9 @@ accepts :: (Ord s, Eq t) => DPDA s a t -> [a] -> Bool
 accepts pda as = go as (startState pda, [])
   where
     go [] c =
-      case stepE pda [] c of
-        -- When we have read all input, check if the current state is final.
+      case stepE pda c of
+        -- When we have read all input,
+        -- check if the current state is final.
         Left cs ->
           let ss = fst <$> cs
            in any (`Set.member` finalStates pda) ss

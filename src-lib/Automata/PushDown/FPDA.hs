@@ -245,7 +245,7 @@ fromDPDA pda = fpda
     -- indicating that a final state was encountered along the way.
     nextState :: (s, [t]) -> Either ((ReadState s, Bool), [Bottomed t]) (PopState s a, Bool)
     nextState (q, ts) =
-      case DPDA.stepE pda [] (q, ts) of
+      case DPDA.stepE pda (q, ts) of
         Right qs ->
           let b = (Set.fromList . toList) qs `intersects` DPDA.finalStates pda
            in stuck b
@@ -273,7 +273,7 @@ fromDPDA pda = fpda
     -- Check if a final state is reachable from state `q` with stack symbols `ts`,
     -- but consuming no input.
     finalReachable (q, ts) =
-      let reachable = toList $ either (fst <$>) id $ DPDA.stepE pda [] (q, ts)
+      let reachable = toList $ either (fst <$>) id $ DPDA.stepE pda (q, ts)
        in Set.fromList reachable `intersects` DPDA.finalStates pda
     -- Check if a state in the DPDA is a read state.
     -- A state q is counted as a read state if either δ(q, ε, a) or δ(q, t, a)

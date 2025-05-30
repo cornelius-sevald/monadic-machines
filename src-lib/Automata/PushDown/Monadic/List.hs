@@ -290,10 +290,10 @@ fromNPDA pda = listPDA
     nextStates :: (s, [t]) -> [Either ((ReadState s, Bool), [Bottomed t]) (PopState s a, Bool)]
     nextStates (q, ts) = do
       -- We get either a configuration that can't step any further
-      -- without input, or a state in an ε-loop.
+      -- without input, or a state in a non-descending ε-cycle.
       -- In either case, `b` is a boolean indicating that a
-      -- final state was encountered.
-      ((q', ts'), b) <- Set.toList $ NPDA.stepE' pda ((q, ts), False)
+      -- final state was encountered along the path.
+      ((q', ts'), b) <- Set.toList $ NPDA.stepTraceE pda (q, ts)
       let p = Right (PopState q' Nothing, b)
           r = Left ((ReadState q', b), SSymbol <$> ts')
        in if null ts' then [p, r] else [r]

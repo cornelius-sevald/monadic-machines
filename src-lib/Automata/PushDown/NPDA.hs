@@ -37,38 +37,39 @@ data NPDA s a t = NPDA
     trans :: (s, Maybe t, Maybe a) -> Set (s, [t])
   }
 
-type Config s t = (s, [t])
-
--- | Perform a step in state `s` with (optional) input symbol `a`.
-stepStack ::
+-- | Perform a single frame-rule.
+-- Computes all β that satisfy (ts, q, a) ⊢ β.
+stepFrame ::
   (Ord s, Ord t) =>
   NPDA s a t ->
-  Config s t ->
+  (s, [t]) ->
   Maybe a ->
-  Set (Config s t)
-stepStack pda (q, ts) a =
+  Set (s, [t])
+stepFrame pda (q, ts) a =
   Set.unions $ go <$> split01 ts
   where
     go (t, ts') = Set.fromList $ do
       (q', t') <- Set.toList $ trans pda (q, t, a)
       pure (q', t' ++ ts')
 
--- | Perform a step without consuming any input.
+-- | Compute the ε-closure of this state/stack,
+-- i.e. the set of configurations reachable via only ε-transitions
+-- whose path don't involve a non-descending ε-cycle.
 stepE ::
   (Ord s, Ord t) =>
   -- | The PDA.
   NPDA s a t ->
   -- | The current state/stack configuration.
-  Config s t ->
+  (s, [t]) ->
   -- | A set of new configurations.
-  Set (Config s t)
+  Set (s, [t])
 stepE pda = go []
   where
     go seen (s, ts) =
       let seen' = Set.insert (s, ts) seen
           -- We step with no input,
           -- yielding a set of successor configurations.
-          cs' = stepStack pda (s, ts) Nothing
+          cs' = stepFrame pda (s, ts) Nothing
           -- We filter out the already-seen configurations
           -- (or at least those similar enough),
           -- leaving only new configurations.
@@ -77,48 +78,50 @@ stepE pda = go []
           -- and recursively step the new ones.
           Set.singleton (s, ts) `Set.union` Set.unions (Set.map (go seen') new)
 
--- | Version of 'stepE' which also keeps tracks if a final
+-- | Version of 'stepE' which also keeps a trace if a final
 -- state was reached on the path to each configuration.
-stepE' ::
+stepTraceE ::
   (Ord s, Ord t) =>
   -- | The PDA.
   NPDA s a t ->
   -- | The current state/stack configuration.
-  ((s, [t]), Bool) ->
+  (s, [t]) ->
   -- | A set of new configurations.
   Set ((s, [t]), Bool)
-stepE' pda = go []
+stepTraceE pda c = go [] (c, False)
   where
-    go seen c@((s, ts), b) =
+    go seen ((s, ts), b) =
       let isFinal = s `Set.member` finalStates pda
           b' = b || isFinal
-          seen' = Set.insert ((s, ts), b') seen
+          x' = ((s, ts), b')
+          seen' = Set.insert x' seen
           -- We step with no input,
           -- yielding a set of successor configurations.
-          cs' = stepStack pda (s, ts) Nothing
+          cs' = stepFrame pda (s, ts) Nothing
           -- We filter out the already-seen configurations
           -- (or at least those similar enough),
           -- leaving only new configurations.
           new = Set.map (,b') $ Set.filter (isNothing . dejavu (Set.map fst seen')) cs'
        in -- We return the current configuration,
           -- and recursively step the new ones.
-          Set.singleton c `Set.union` Set.unions (Set.map (go seen') new)
+          Set.singleton x' `Set.union` Set.unions (Set.map (go seen') new)
 
--- | Perform a step on a single input symbol.
-step :: (Ord s, Ord t) => NPDA s a t -> a -> Config s t -> Set (Config s t)
-step pda a c =
+-- | Step using the frame rule until the input symbol 'a' has been read.
+-- Computes the set of configurations { α_1, α_2, ... , α_n } ∪ { β }
+-- such that α_i = (t_i, q_i, a), β = (t_{n+1}, q_{n+1}, ε), and
+--   α_1 ⊢ α_2 ⊢ ... ⊢ α_n ⊢ β.
+step :: (Ord s, Ord t) => NPDA s a t -> a -> (s, [t]) -> Set (s, [t])
+step pda a (s, ts) =
   -- We get the set of configurations reachable
   -- without consuming any input.
-  let cs' = stepE pda c
+  let cs' = stepE pda (s, ts)
    in -- And then step each of those with the input.
-      Set.unions $ Set.map f cs'
-  where
-    f c' = stepStack pda c' (Just a)
+      Set.unions $ Set.map (\c -> stepFrame pda c (Just a)) cs'
 
 -- | The PDA accepts a word iff. there exists a
 -- path from the start state to a final state after
 -- reading the entire input,
--- *and this path contains no non-decreasing ε-cycles*
+-- *and this path contains no non-decreasing ε-cycles*.
 accepts :: (Ord s, Ord t) => NPDA s a t -> [a] -> Bool
 accepts pda as = go as (startState pda, [])
   where
