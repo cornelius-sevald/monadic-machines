@@ -156,6 +156,13 @@ spec = do
           (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
         prop "rejects(∃) strings not in L" $ do
           (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
+      context "For a NPDA recognizing L = {w | w is not a palindrome}" $ do
+        let (lang, langComp) = (langCompPalindromes, langPalindromes)
+        let pda = ListPDA.fromNPDA NPDASpec.npdaNonPalindromes
+        prop "accepts(∃) strings in L" $ do
+          (`shouldSatisfy` ListPDA.acceptsAngelig pda) <$> lang
+        prop "rejects(∃) strings not in L" $ do
+          (`shouldNotSatisfy` ListPDA.acceptsAngelig pda) <$> langComp
       context "For a random NPDA" $
         -- We have to reduce the size a crazy amount,
         -- but otherwise it runs for ages.
@@ -197,6 +204,7 @@ spec = do
  - with *angelic* non-determinism.
  - -}
 
+-- | A PDA that recognizes(∃) the language {OᵏIᵏ | k ≥ 0}
 pdaOkIk :: ListPDA Word8 () Bit Char
 pdaOkIk =
   MPDA.MonadicPDA
@@ -218,7 +226,7 @@ pdaOkIk =
         c -> error $ "invalid configuration " ++ show c
     }
 
--- | A PDA that recognizes palindromes.
+-- | A PDA that recognizes(∃) palindromes.
 pdaPalindromes :: ListPDA Word8 (Either ABC ()) ABC (Bottomed ABC)
 pdaPalindromes =
   MPDA.MonadicPDA
@@ -247,7 +255,7 @@ pdaPalindromes =
         (Right (), t) -> [Left (3, [t])]
     }
 
--- | A List PDA that recognizes the language of strings of odd length.
+-- | A List PDA that recognizes(∃) the language of strings of odd length.
 pdaOdd :: ListPDA (NAry 2) Void a ()
 pdaOdd =
   MPDA.MonadicPDA
@@ -267,8 +275,8 @@ pdaOdd =
       _ -> []
     _transPop (q, _) = absurd q
 
--- | A List PDA that recognizes the complement of the language { w·w | w ∈ { A,B,C }* },
--- when using angelig non-determinism.
+-- | A List PDA that recognizes(∃) the complement of the
+-- language { w·w | w ∈ { A,B,C }* }.
 --
 -- Implementation taken from the description given in:
 -- https://cs.stackexchange.com/a/170019.
@@ -322,8 +330,7 @@ pdaNonRepeated = m1 `ListPDA.union` m2
         [Left (Left 5, [])]
       c -> error $ "invalid pop state / stack input " ++ show c
 
--- | List PDA that recognizes the EQ language { AⁿBⁿCⁿ | n ≥ 0 }
--- when using *demonic non-determinism*.
+-- | List PDA that recognizes(∀) the EQ language { AⁿBⁿCⁿ | n ≥ 0 }.
 --
 -- The construction is based on the description in [1, p. 987].
 pdaEQ ::

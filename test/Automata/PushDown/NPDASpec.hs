@@ -64,6 +64,13 @@ spec = do
         (`shouldSatisfy` NPDA.accepts npda) <$> lang
       prop "rejects strings not in L" $ do
         (`shouldNotSatisfy` NPDA.accepts npda) <$> langComp
+    context "With L = {w | w is not a palindrome}" $ do
+      let (lang, langComp) = (langCompPalindromes, langPalindromes)
+      let npda = npdaNonPalindromes
+      prop "accepts strings in L" $ do
+        (`shouldSatisfy` NPDA.accepts npda) <$> lang
+      prop "rejects strings not in L" $ do
+        (`shouldNotSatisfy` NPDA.accepts npda) <$> langComp
     context "With L = { w·w | w ∈ Σ* }" $
       modifyMaxSize (`div` 2) $ do
         let (lang, langComp) = (langRepeated, langCompRepeated)
@@ -171,6 +178,31 @@ npdaPalindromes =
         (3, Just (Right ()), Nothing) ->
           [(4, [])]
         (_, _, _) -> []
+    }
+
+-- | A PDA that recognizes non-palindromes.
+npdaNonPalindromes :: NPDA (NAry 5) ABC (Bottomed ABC)
+npdaNonPalindromes =
+  NPDA
+    { startState = 1,
+      finalStates = [5],
+      trans = \case
+        (1, Nothing, Nothing) ->
+          [(2, [Bottom])]
+        (2, Nothing, Nothing) ->
+          [(3, [])]
+        (2, Nothing, Just x) ->
+          [ (2, [SSymbol x]),
+            (3, [])
+          ]
+        (3, Just (SSymbol x), Just y)
+          | x /= y -> [(3, []), (4, [])]
+          | otherwise -> [(3, [])]
+        (4, Just (SSymbol _), Just _) ->
+          [(4, [])]
+        (4, Just Bottom, Nothing) ->
+          [(5, [])]
+        _ -> []
     }
 
 -- | A PDA that recognizes the language of strings of odd length.
