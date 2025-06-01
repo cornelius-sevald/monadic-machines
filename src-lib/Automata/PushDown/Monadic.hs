@@ -1,17 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 
 -- | Pushdown automata generalized with a mondaic transition function.
 module Automata.PushDown.Monadic where
 
 import Automata.PushDown.Util (Bottomed (..), bottom)
-import Control.Arrow
-import Control.Category
-import Data.Foldable
+import Control.Monad
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Prelude hiding (id, (.))
 
 -- | A Monadic Pushdown Automaton (MPDA) is a generalization
 -- of the Functional Pushdown Automaton, and is defined by a
@@ -49,17 +45,16 @@ stepPop m (Right p) t = transPop m (p, t)
 
 stepRead :: (Monad m) => MonadicPDA m r p a t -> (r, [t]) -> a -> m (Maybe (r, [t]))
 stepRead m (r, ts) a = do
-  let f t = Kleisli (\q -> stepPop m q t)
-  c_0 <- transRead m (r, a)
-  c_n <- runKleisli (foldl' (>>>) id $ map f ts) c_0
-  pure $ catch c_n
+  let f = stepPop m
+  s <- transRead m (r, a)
+  catch <$> foldM f s ts
 
 stepsM :: (Monad m) => MonadicPDA m r p a t -> [a] -> (r, [t]) -> m (Maybe (r, [t]))
 stepsM m as c =
-  let f a = Kleisli $ \case
+  let f c' a = case c' of
         Nothing -> pure Nothing
         Just (r, ts) -> stepRead m (r, ts) a
-   in runKleisli (foldl' (>>>) id $ map f as) $ Just c
+   in foldM f (pure c) as
 
 runMPDA :: (Monad m, Ord r) => MonadicPDA m r p a t -> [a] -> m Bool
 runMPDA m as = do
