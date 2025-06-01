@@ -10,7 +10,7 @@ import Automata.PushDown.DPDA (DPDA (DPDA))
 import qualified Automata.PushDown.DPDA as DPDA
 import Automata.PushDown.Util (Bottomed (..))
 import Control.Monad (foldM)
-import Data.Foldable (toList)
+import Data.Foldable
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe (catMaybes, isJust)
 import Data.Set (Set)
@@ -18,13 +18,13 @@ import qualified Data.Set as Set
 import Data.Universe.Class (Finite (..), Universe (..))
 
 -- | A Functional Pushdown Automaton (FPDA),
--- is a 9-tuple (P, R, Σ, Γ, δ_read, δ_pop, Z₀, q₀, F) where,
+-- is a 9-tuple (P, R, Σ, Γ, δ_read, δ_pop, Z₀, r₀, F) where,
 --
 --   - P, R, Σ, Γ are finite sets, called the *pop states*,
 --     *read states*, *input symbols* and *stack symbols*, resp.
---   - δ_read : R × Σ → P is the *read transition function*,
+--   - δ_read : R × Σ → P + (R × Γ^*) is the *read transition function*,
 --   - δ_pop  : P × Γ → P + (R × Γ^*) is the *pop transition function*,
---   - Z₀ ∈ Γ is the *start symbol*, and
+--   - Z₀ ∈ Γ is the *start symbol*,
 --   - r_0 ∈ R is the *start state*, and
 --   - F ⊆ R is the set of *accepting states*.
 --
@@ -51,7 +51,7 @@ stepPop fpda (Right p) t = transPop fpda (p, t)
 stepRead :: FPDA r p a t -> (r, [t]) -> a -> Maybe (r, [t])
 stepRead fpda (r, ts) a =
   let s = transRead fpda (r, a)
-   in catch $ foldl (stepPop fpda) s ts
+   in catch $ foldl' (stepPop fpda) s ts
 
 steps :: FPDA r p a t -> [a] -> (r, [t]) -> Maybe (r, [t])
 steps fpda as c = foldM (stepRead fpda) c as
@@ -176,7 +176,7 @@ fromDPDA pda = fpda
                 Left ((ReadState q', _), ts') ->
                   let f = stepPop fpda
                       p = Right (PopState q' (Just a), False)
-                   in foldl f p ts'
+                   in foldl' f p ts'
                 _ -> stuck False
         -- If we are in a stuck state and read any input symbol,
         -- we want to reject the word. We do this by staying in

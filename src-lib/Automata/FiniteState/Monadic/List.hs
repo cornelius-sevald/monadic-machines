@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- | Monadic automaton with the `List` monad.
 -- Equivalent to a non-deterministic finite automaton,
 -- with angelic non-determinism acceptance.
@@ -20,14 +22,19 @@ import Data.Universe.Class (Finite)
 type ListFA a s = MonadicFA a [] s
 
 fromNFA :: (Ord s, Finite s) => NFA a s -> ListFA a (Maybe s)
-fromNFA nfa = MonadicFA {start = _start, final = _final, trans = _trans}
+fromNFA nfa =
+  MonadicFA
+    { start = Nothing,
+      final = _final,
+      trans = _trans
+    }
   where
-    _start = Nothing
     _final =
       let fs = NFA.final nfa
           ss = NFA.stepE nfa $ NFA.start nfa
        in Set.map Just fs
-            `Set.union` Set.fromList [Nothing | not (ss `Set.disjoint` fs)]
+            `Set.union` Set.fromList
+              [Nothing | not (ss `Set.disjoint` fs)]
     _trans (Nothing, x) =
       let qs0 = NFA.stepE nfa (NFA.start nfa)
           qs1 = Set.unions $ Set.map (\q -> NFA.step nfa q x) qs0
@@ -37,12 +44,14 @@ fromNFA nfa = MonadicFA {start = _start, final = _final, trans = _trans}
        in Just <$> Set.toList qs
 
 toNFA :: (Ord s) => ListFA a s -> NFA a s
-toNFA m = NFA {NFA.start = _start, NFA.final = _final, NFA.trans = _trans}
-  where
-    _start = start m
-    _final = final m
-    _trans (q, Just x) = Set.fromList $ trans m (q, x)
-    _trans (_, Nothing) = Set.empty
+toNFA m =
+  NFA
+    { NFA.start = start m,
+      NFA.final = final m,
+      NFA.trans = \case
+        (q, Just x) -> Set.fromList $ trans m (q, x)
+        (_, Nothing) -> Set.empty
+    }
 
 acceptsAngelic :: (Ord s) => ListFA a s -> [a] -> Bool
 acceptsAngelic m w = acceptance $ runMFA' m removeDups w

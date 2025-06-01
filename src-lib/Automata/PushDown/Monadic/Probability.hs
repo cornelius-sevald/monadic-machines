@@ -6,8 +6,10 @@
 -- Equivalent to an probabilistic pushdown automaton.
 module Automata.PushDown.Monadic.Probability
   ( ProbabilityPDA,
-    acceptsStrict,
-    acceptsNonStrict,
+    acceptsExclusive,
+    acceptsInclusive,
+    acceptsEqual,
+    acceptsNotEqual,
     invert,
     concatenateMarked,
     fromAngelicListPDA,
@@ -25,7 +27,7 @@ import qualified Numeric.Probability.Distribution as Dist
 
 type ProbabilityPDA prob r p a t = MonadicPDA (T prob) r p a t
 
--- | Acceptance function for PPDA, with strict comparison.
+-- | Acceptance function for PPDA, using >.
 --
 -- Takes a *cut-point* 0 ≤ η < 1 which is the threshold
 -- at which words are accepted, i.e. a larger value
@@ -36,34 +38,56 @@ type ProbabilityPDA prob r p a t = MonadicPDA (T prob) r p a t
 -- transitions in the probability monad anyway, as it results
 -- in invalid probabilities when running the PDA, i.e. you may
 -- get results where P(accept) + P(reject) < 1.
-acceptsStrict ::
+acceptsExclusive ::
   (Ord r, Ord prob, Num prob) =>
   ProbabilityPDA prob r p a t ->
   prob ->
   [a] ->
   Bool
-acceptsStrict m η w = acceptance $ runMPDA m w
+acceptsExclusive m η w = acceptance $ runMPDA m w
   where
     acceptance t = Dist.truth t > η
 
--- | Alternative acceptance function for PPDA, using non-strict comparison.
+-- | Alternative acceptance function for PPDA, using >=.
 --
 -- Takes a *cut-point* 0 < η ≤ 1 which is the threshold
 -- at which words are accepted, i.e. a larger value
 -- of η means that the automaton is less likely to accepts.
-acceptsNonStrict ::
+acceptsInclusive ::
   (Ord r, Ord prob, Num prob) =>
   ProbabilityPDA prob r p a t ->
   prob ->
   [a] ->
   Bool
-acceptsNonStrict m η w = acceptance $ runMPDA m w
+acceptsInclusive m η w = acceptance $ runMPDA m w
   where
     acceptance t = Dist.truth t >= η
 
+-- | Alternative acceptance function for PPDA, using =.
+acceptsEqual ::
+  (Ord r, Ord prob, Num prob) =>
+  ProbabilityPDA prob r p a t ->
+  prob ->
+  [a] ->
+  Bool
+acceptsEqual m η w = acceptance $ runMPDA m w
+  where
+    acceptance t = Dist.truth t == η
+
+-- | Alternative acceptance function for PPDA, using ≠.
+acceptsNotEqual ::
+  (Ord r, Ord prob, Num prob) =>
+  ProbabilityPDA prob r p a t ->
+  prob ->
+  [a] ->
+  Bool
+acceptsNotEqual m η w = acceptance $ runMPDA m w
+  where
+    acceptance t = Dist.truth t /= η
+
 -- | Invert PPDA M, such that `invert M` accepts a word `w`
--- with non-strict cut-point η iff. `M` rejects `w` with
--- strict cut-point (1-η), or vice versa.
+-- with exclusive cut-point η iff. `M` rejects `w` with
+-- inclusive cut-point (1-η), or vice versa.
 invert ::
   (Finite r, Ord r, Fractional prob) =>
   ProbabilityPDA prob r p a t ->

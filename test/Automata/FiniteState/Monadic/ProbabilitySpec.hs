@@ -31,35 +31,35 @@ spec = do
       let η = 2 % 3
       let (lang, langComp) = langStochastic η
       let pfa = pfaStochastic
-      let acceptance m = acceptsStrict m η
-      prop "accepts (strict) strings in L" $ do
+      let acceptance m = acceptsExclusive m η
+      prop "accepts(>) strings in L" $ do
         (`shouldSatisfy` acceptance pfa) <$> lang
-      prop "rejects (strict) strings not in L" $ do
+      prop "rejects(>) strings not in L" $ do
         (`shouldNotSatisfy` acceptance pfa) <$> langComp
   describe "the 'invert' function" $ do
     context "With L = { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > 2/3 }" $ do
       let η = 2 % 3
       let (lang, langComp) = langStochastic η
       let pfa = invert pfaStochastic
-      let acceptance m = acceptsNonStrict m (1 - η)
+      let acceptance m = acceptsInclusive m (1 - η)
       prop "accepts strings not in L" $ do
         (`shouldSatisfy` acceptance pfa) <$> langComp
       prop "rejects strings in L" $ do
         (`shouldNotSatisfy` acceptance pfa) <$> lang
   describe "toPFA" $ modifyMaxSize (`div` 10) $ do
-    prop "recognizes (strict) the same language" $ do
+    prop "recognizes(>) the same language" $ do
       \m' w ->
         let η = 2 % 3 -- arbitrary cut-point
             m = mkProbabilityFA m' :: ProbabilityFA Rational A S
             pfa = toPFA m
-         in PFA.accepts pfa η w `shouldBe` acceptsStrict m η w
+         in PFA.accepts pfa η w `shouldBe` acceptsExclusive m η w
   describe "fromPFA" $ modifyMaxSize (`div` 10) $ do
-    prop "recognizes (strict) the same language" $ do
+    prop "recognizes(>) the same language" $ do
       \pfa' w ->
         let η = 2 % 3 -- arbitrary cut-point
             pfa = mkPFA pfa'
             m = fromPFA pfa :: ProbabilityFA Rational A S
-         in acceptsStrict m η w `shouldBe` PFA.accepts pfa η w
+         in acceptsExclusive m η w `shouldBe` PFA.accepts pfa η w
 
 -- | A probability FA that recognizes the non-regular stochastic language
 -- { Iᵏ¹OIᵏ²O ... IᵏⁿO | ∏ⁿᵢ₌₁ (1 - (1/2)ᵏⁱ) > η }.

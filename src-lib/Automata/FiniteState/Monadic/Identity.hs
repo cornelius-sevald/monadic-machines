@@ -15,21 +15,23 @@ import Data.Functor.Identity
 
 type IdentityFA a s = MonadicFA a Identity s
 
-fromDFA :: DFA a s -> IdentityFA a s
-fromDFA dfa = MonadicFA {start = _start, final = _final, trans = _trans}
-  where
-    _start = DFA.start dfa
-    _final = DFA.final dfa
-    _trans = pure . DFA.trans dfa
-
-toDFA :: IdentityFA a s -> DFA a s
-toDFA m = DFA {DFA.start = _start, DFA.final = _final, DFA.trans = _trans}
-  where
-    _start = start m
-    _final = final m
-    _trans = runIdentity . trans m
-
 accepts :: (Ord s) => IdentityFA a s -> [a] -> Bool
 accepts m w = acceptance $ runMFA m w
   where
     acceptance = runIdentity
+
+fromDFA :: DFA a s -> IdentityFA a s
+fromDFA dfa =
+  MonadicFA
+    { start = DFA.start dfa,
+      final = DFA.final dfa,
+      trans = Identity . DFA.trans dfa
+    }
+
+toDFA :: IdentityFA a s -> DFA a s
+toDFA m =
+  DFA
+    { DFA.start = start m,
+      DFA.final = final m,
+      DFA.trans = runIdentity . trans m
+    }

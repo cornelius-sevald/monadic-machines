@@ -4,8 +4,10 @@ module Automata.FiniteState.Monadic.Probability
   ( ProbabilityFA,
     fromPFA,
     toPFA,
-    acceptsStrict,
-    acceptsNonStrict,
+    acceptsExclusive,
+    acceptsInclusive,
+    acceptsEqual,
+    acceptsNotEqual,
     invert,
   )
 where
@@ -34,7 +36,7 @@ toPFA m = PFA {PFA.start = _start, PFA.final = _final, PFA.trans = _trans}
     _final = final m
     _trans = trans m
 
--- | Acceptance function for PFA, with strict comparison.
+-- | Acceptance function for PFA, using >.
 --
 -- Takes a *cut-point* 0 ≤ η < 1 which is the threshold
 -- at which words are accepted, i.e. a larger value
@@ -45,34 +47,56 @@ toPFA m = PFA {PFA.start = _start, PFA.final = _final, PFA.trans = _trans}
 -- transitions in the probability monad anyway, as it results
 -- in invalid probabilities when running the PDA, i.e. you may
 -- get results where P(accept) + P(reject) < 1.
-acceptsStrict ::
+acceptsExclusive ::
   (Ord s, Ord prob, Num prob) =>
   ProbabilityFA prob a s ->
   prob ->
   [a] ->
   Bool
-acceptsStrict m η w = acceptance $ runMFA m w
+acceptsExclusive m η w = acceptance $ runMFA m w
   where
     acceptance t = Dist.truth t > η
 
--- | Alternative acceptance function for PFA, using non-strict comparison.
+-- | Alternative acceptance function for PFA, using >=.
 --
 -- Takes a *cut-point* 0 < η ≤ 1 which is the threshold
 -- at which words are accepted, i.e. a larger value
 -- of η means that the automaton is less likely to accepts.
-acceptsNonStrict ::
+acceptsInclusive ::
   (Ord s, Ord prob, Num prob) =>
   ProbabilityFA prob a s ->
   prob ->
   [a] ->
   Bool
-acceptsNonStrict m η w = acceptance $ runMFA m w
+acceptsInclusive m η w = acceptance $ runMFA m w
   where
     acceptance t = Dist.truth t >= η
 
+-- | Alternative acceptance function for PFA, using =.
+acceptsEqual ::
+  (Ord s, Ord prob, Num prob) =>
+  ProbabilityFA prob a s ->
+  prob ->
+  [a] ->
+  Bool
+acceptsEqual m η w = acceptance $ runMFA m w
+  where
+    acceptance t = Dist.truth t == η
+
+-- | Alternative acceptance function for PFA, using ≠.
+acceptsNotEqual ::
+  (Ord s, Ord prob, Num prob) =>
+  ProbabilityFA prob a s ->
+  prob ->
+  [a] ->
+  Bool
+acceptsNotEqual m η w = acceptance $ runMFA m w
+  where
+    acceptance t = Dist.truth t /= η
+
 -- | Invert PFA M, such that `invert M` accepts a word `w`
--- with non-strict cut-point η iff. `M` rejects `w` with
--- strict cut-point (1-η), or vice versa.
+-- with exclusive cut-point η iff. `M` rejects `w` with
+-- inclusive cut-point (1-η), or vice versa.
 invert ::
   (Ord s, Finite s, Fractional prob) =>
   ProbabilityFA prob a s ->
