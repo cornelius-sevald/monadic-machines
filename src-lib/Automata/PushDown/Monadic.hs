@@ -5,6 +5,7 @@
 module Automata.PushDown.Monadic where
 
 import Automata.PushDown.Util (Bottomed (..), bottom)
+import Control.Arrow
 import Control.Monad
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -57,12 +58,12 @@ stepsM m as c =
    in foldM f (pure c) as
 
 runMPDA :: (Monad m, Ord r) => MonadicPDA m r p a t -> [a] -> m Bool
-runMPDA m as = do
+runMPDA m as =
   let c_0 = (startState m, [startSymbol m])
-  c_n <- stepsM m as c_0
-  case c_n of
-    Nothing -> pure False
-    Just (q, _) -> pure $ q `Set.member` finalStates m
+   in isFinal <$> stepsM m as c_0
+  where
+    isFinal (Just (q, _)) = q `Set.member` finalStates m
+    isFinal Nothing = False
 
 onPopEmptyStack ::
   (Monad m, Ord r) =>

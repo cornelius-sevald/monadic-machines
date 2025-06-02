@@ -92,7 +92,7 @@ intersection ::
   ListPDA (Maybe (Either r1 r2)) (Either p1 p2) a (These t1 t2)
 intersection = combinePDAs (&&)
 
--- | Generalized function for combining Proposition PDAs,
+-- | Generalized function for combining List PDAs,
 -- e.g. for implementing union (with '(||)') or intersection (with '(&&)').
 combinePDAs ::
   (Ord r1, Ord r2) =>
